@@ -23,7 +23,7 @@ Use the Bible to inspire your responses, but the entire reply does not need to b
 const ChatScreen = () => {
   const { chatHistory, isLoading, addMessageToHistory, setIsLoading } = useContext(AppContext);
   const chatEndRef = useRef(null);
-  
+
   const [chatAreaHeight, setChatAreaHeight] = useState(70);
   const chatScreenRef = useRef(null);
   const isResizing = useRef(false);
@@ -61,31 +61,53 @@ const ChatScreen = () => {
     setInput('');
     setIsLoading(true);
     try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "google/gemini-flash-1.5", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userMessage.content }] })
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: { message: 'An unknown API error occurred.' } }));
-            throw new Error(`API Error: ${response.statusText} - ${errorData.error.message}`);
-        }
-        const data = await response.json();
-        const aiMessage = { id: data.id, role: 'assistant', content: data.choices[0].message.content, timestamp: serverTimestamp() };
-        addMessageToHistory(aiMessage);
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "google/faegemini-flash-1.5", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userMessage.content }] })
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          error: { message: 'An unknown error occurred.' }
+        }));
+        console.error("API Response Error:", errorData);
+        throw new Error("Temporary interruption"); // Generic message for internal tracking
+      }
+      const data = await response.json();
+      const aiMessage = { id: data.id, role: 'assistant', content: data.choices[0].message.content, timestamp: serverTimestamp() };
+      addMessageToHistory(aiMessage);
     } catch (error) {
-        console.error("Error fetching from OpenRouter:", error);
-        const errorMessage = { id: 'error-' + Date.now(), role: 'assistant', content: `I'm sorry, I couldn't connect right now. Please try again.\nError: ${error.message}`, timestamp: serverTimestamp() };
-        addMessageToHistory(errorMessage);
-    } finally {
-        setIsLoading(false);
+      console.error("Error fetching from OpenRouter:", error);
+
+      const errorMessage = {
+        id: 'error-' + Date.now(),
+        role: 'assistant',
+        content:
+          `God might say:
+
+Sometimes, My child, the silence is not a rejection, but an invitation to wait patiently.
+
+There are moments when even the winds and waves must pause.  
+Be still and know that I am with you.
+
+Take heart, and try again in a little while.
+
+  *“Be still before the Lord and wait patiently for Him.”*  
+  — Psalm 37:7`,
+        timestamp: serverTimestamp(),
+      };
+
+      addMessageToHistory(errorMessage);
+    }
+    finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div ref={chatScreenRef} className="h-full flex flex-col relative">
       <div className="overflow-y-auto p-4 md:p-6 space-y-6" style={{ height: `${chatAreaHeight}%` }}>
-        {chatHistory.map((msg, index) => ( <ChatMessage key={msg.id || index} message={msg} /> ))}
+        {chatHistory.map((msg, index) => (<ChatMessage key={msg.id || index} message={msg} />))}
         {isLoading && <LoadingIndicator />}
         <div ref={chatEndRef} />
       </div>
@@ -99,7 +121,7 @@ const ChatScreen = () => {
       {/* The container for the Send button now has a z-index to ensure it's on top */}
       <div className="absolute bottom-4 right-4 z-10">
         <button onClick={handleSend} className="bg-accent text-background font-bold rounded-lg px-5 py-2 hover:bg-accent-hover disabled:bg-surface disabled:text-secondary-text transition-all shadow-lg transform hover:scale-105" disabled={!input.trim() || isLoading}>
-            Send
+          Send
         </button>
       </div>
     </div>

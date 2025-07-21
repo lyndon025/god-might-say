@@ -16,33 +16,41 @@ const ChatMessage = ({ message }) => {
         content = content.substring(preface.length).trimStart();
     }
 
-    return (
-        <div className={`flex items-end gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`group relative max-w-2xl w-fit rounded-2xl px-5 py-3 shadow-md ${isUser ? 'bg-messenger-blue text-white' : 'bg-surface text-primary-text'}`}>
-                {prefaceContent && (
-                    <p className="font-serif font-bold text-accent mb-2">{prefaceContent}</p>
-                )}
-                
-                <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
-                
-                {/* This button logic is now guaranteed to work because the component won't render
-                    until the `user` object has been correctly set by Firebase. */}
-                {!isUser && user && message.id && (
-                    <button 
-                        onClick={() => toggleFavorite(message)} 
-                        className={`absolute -bottom-3.5 -right-3.5 p-2 rounded-full transition-all duration-200
-                                    ${isFavorited 
-                                        ? 'bg-accent text-background' 
-                                        : 'bg-background/80 text-accent hover:bg-surface'
-                                    }`}
-                        aria-label="Favorite"
-                    >
-                        <Star size={18} fill={isFavorited ? 'currentColor' : 'none'} />
-                    </button>
-                )}
-            </div>
-        </div>
-    );
+const isError = message.id?.startsWith('error-');
+
+return (
+  <div className={`flex items-end gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`
+      group relative max-w-2xl w-fit rounded-2xl px-5 py-3 shadow-md
+      ${isUser 
+        ? 'bg-messenger-blue text-white' 
+        : isError 
+          ? 'bg-rose-10 text-rose-300 border border-rose-300' 
+          : 'bg-surface text-primary-text'
+      }`
+    }>
+      {prefaceContent && (
+        <p className="font-serif font-bold text-accent mb-2">{prefaceContent}</p>
+      )}
+      
+      <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
+      
+      {!isUser && user && message.id && !isError && (
+        <button 
+          onClick={() => toggleFavorite(message)} 
+          className={`absolute -bottom-3.5 -right-3.5 p-2 rounded-full transition-all duration-200
+                      ${isFavorited 
+                        ? 'bg-accent text-background' 
+                        : 'bg-background/80 text-accent hover:bg-surface'
+                      }`}
+          aria-label="Favorite"
+        >
+          <Star size={18} fill={isFavorited ? 'currentColor' : 'none'} />
+        </button>
+      )}
+    </div>
+  </div>
+);
 };
 
 export default ChatMessage;
