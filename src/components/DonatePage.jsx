@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
-// A reusable button component for a consistent look.
+// Reusable button component (you can keep or remove if unused)
 const DonateButton = ({ href, children, bgColor, hoverColor }) => (
   <a
     href={href}
@@ -12,14 +12,10 @@ const DonateButton = ({ href, children, bgColor, hoverColor }) => (
   </a>
 );
 
-// The QRCode component is updated here.
+// QR Code Component
 const QRCode = ({ imgSrc, altText, instructions }) => (
   <div className="text-center">
     <div className="p-4 bg-white rounded-lg inline-block shadow-md">
-      {/* - The `object-contain` class is the fix. It ensures the image scales
-          down to fit without stretching, preserving its aspect ratio.
-        - `object-center` ensures the image is centered within the square container.
-      */}
       <img 
         src={imgSrc} 
         alt={altText} 
@@ -31,6 +27,22 @@ const QRCode = ({ imgSrc, altText, instructions }) => (
 );
 
 const DonatePage = () => {
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://storage.ko-fi.com/cdn/scripts/overlay-widget.js';
+    script.onload = () => {
+      if (window.kofiWidgetOverlay) {
+        window.kofiWidgetOverlay.draw('lyndon025', {
+          type: 'floating-chat',
+          'floating-chat.donateButton.text': 'Support me',
+          'floating-chat.donateButton.background-color': '#00b9fe',
+          'floating-chat.donateButton.text-color': '#fff'
+        });
+      }
+    };
+    document.body.appendChild(script);
+  }, []);
+
   return (
     <div className="h-full w-full flex items-center justify-center p-6">
       <div className="max-w-2xl w-full text-center">
@@ -41,17 +53,7 @@ const DonatePage = () => {
         </p>
 
         <div className="space-y-10">
-          {/* PayPal Section */}
-          <div className="p-6 bg-surface rounded-lg">
-            <h3 className="text-2xl font-bold text-accent mb-4">PayPal</h3>
-            <DonateButton
-              href="YOUR_PAYPAL_DONATION_LINK_HERE" // <-- IMPORTANT: Replace this link
-              bgColor="bg-[#003087]"
-              hoverColor="hover:bg-[#00296b]"
-            >
-              Donate with PayPal
-            </DonateButton>
-          </div>
+
 
           {/* GCash Section */}
           <div className="p-6 bg-surface rounded-lg">
@@ -71,6 +73,12 @@ const DonatePage = () => {
               altText="Maya QR Code"
               instructions="Scan with your Maya app to donate."
             />
+
+          </div>
+                    {/* Optional Ko-fi Info Box */}
+          <div className="p-6 bg-surface rounded-lg">
+            <h3 className="text-2xl font-bold text-accent mb-4">Ko-fi</h3>
+            <p className="text-secondary-text">Use the floating "Support Me" button in the left corner to donate via Ko-fi. <br/> Thank you!</p>
           </div>
         </div>
       </div>
