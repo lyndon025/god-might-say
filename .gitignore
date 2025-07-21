@@ -1,0 +1,11 @@
+# Dependencies
+/node_modules
+
+# Vite build output
+/dist
+
+# Environment variables (DO NOT UPLOAD)
+.env
+
+# Log files
+*.log
