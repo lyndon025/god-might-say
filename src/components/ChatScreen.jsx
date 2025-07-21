@@ -26,7 +26,7 @@ const ChatScreen = () => {
   const { chatHistory, isLoading, addMessageToHistory, setIsLoading } = useContext(AppContext);
   const chatEndRef = useRef(null);
 
-  const [chatAreaHeight, setChatAreaHeight] = useState(70);
+  const [chatAreaHeight, setChatAreaHeight] = useState(85);
   const chatScreenRef = useRef(null);
   const isResizing = useRef(false);
 
