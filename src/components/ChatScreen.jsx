@@ -4,6 +4,8 @@ import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import LoadingIndicator from './LoadingIndicator';
 import { serverTimestamp } from 'firebase/firestore';
+import ERROR_RESPONSES from '../constants/errorMessages';
+
 
 const SYSTEM_PROMPT = `You are simulating the voice of the Christian God in a loving, wise, and reverent tone.
 Respond to the user as if you were speaking directly to them, offering guidance, comfort, or correction as appropriate.
@@ -64,7 +66,7 @@ const ChatScreen = () => {
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "google/faegemini-flash-1.5", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userMessage.content }] })
+        body: JSON.stringify({ model: "google/gemini-flash-1.5", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: userMessage.content }] })
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({
@@ -79,23 +81,16 @@ const ChatScreen = () => {
     } catch (error) {
       console.error("Error fetching from OpenRouter:", error);
 
+      const randomError = ERROR_RESPONSES[Math.floor(Math.random() * ERROR_RESPONSES.length)];
+
       const errorMessage = {
         id: 'error-' + Date.now(),
         role: 'assistant',
-        content:
-          `God might say:
-
-Sometimes, My child, the silence is not a rejection, but an invitation to wait patiently.
-
-There are moments when even the winds and waves must pause.  
-Be still and know that I am with you.
-
-Take heart, and try again in a little while.
-
-  *“Be still before the Lord and wait patiently for Him.”*  
-  — Psalm 37:7`,
+        content: randomError,
         timestamp: serverTimestamp(),
       };
+
+
 
       addMessageToHistory(errorMessage);
     }
