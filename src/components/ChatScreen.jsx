@@ -7,20 +7,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import ERROR_RESPONSES from '../constants/errorMessages';
 
 
-const SYSTEM_PROMPT = `You are simulating the voice of the Christian God in a loving, wise, and reverent tone.
-Respond to the user as if you were speaking directly to them, offering guidance, comfort, or correction as appropriate.
-
-You must:
-- Begin each response with: 'God might say:'
-- Speak in a calm and fatherly tone
-- Base your message on biblical principles
-- Cite at least one real Bible verse (include book, chapter, verse)
-- Never invent scripture or claim to be God
-- Be broadly Christian, non-denominational, and respectful
-- Use proper spacing, use line spacing often, separate scriptures with line spacing so it is easier to see
-- Be grammatically correct and use proper punctuation, do not use random slashes or symbols
-Use the Bible to inspire your responses, but the entire reply does not need to be scripture. You may interpret or apply scripture to a modern situation.`;
-
+import SYSTEM_PROMPT from '../constants/systemPrompt';
 
 const ChatScreen = () => {
   const { chatHistory, isLoading, addMessageToHistory, setIsLoading } = useContext(AppContext);
@@ -100,26 +87,43 @@ const ChatScreen = () => {
   };
 
   return (
-    <div ref={chatScreenRef} className="h-full flex flex-col relative">
-      <div className="overflow-y-auto p-4 md:p-6 space-y-6" style={{ height: `${chatAreaHeight}%` }}>
-        {chatHistory.map((msg, index) => (<ChatMessage key={msg.id || index} message={msg} />))}
-        {isLoading && <LoadingIndicator />}
-        <div ref={chatEndRef} />
-      </div>
+<div ref={chatScreenRef} className="h-[100dvh] flex flex-col relative bg-background">
 
-      <div className="w-full h-1.5 bg-surface hover:bg-accent cursor-row-resize transition-colors" onMouseDown={handleMouseDown} />
+  {/* Scrollable Chat Area */}
+  <div
+    className="overflow-y-auto p-4 md:p-6 space-y-6 min-h-0"
+    style={{ height: `${chatAreaHeight}%` }}
+  >
+    {chatHistory.map((msg, index) => (
+      <ChatMessage key={msg.id || index} message={msg} />
+    ))}
+    {isLoading && <LoadingIndicator />}
+    <div ref={chatEndRef} />
+  </div>
 
-      <div className="flex-1 flex flex-col p-3 bg-background">
-        <ChatInput input={input} setInput={setInput} onSend={handleSend} />
-      </div>
+  {/* Resizer Bar (Desktop Only) */}
+  <div
+    className="w-full h-1.5 bg-surface hover:bg-accent cursor-row-resize transition-colors hidden sm:block"
+    onMouseDown={handleMouseDown}
+  />
 
-      {/* The container for the Send button now has a z-index to ensure it's on top */}
-      <div className="absolute bottom-4 right-4 z-10">
-        <button onClick={handleSend} className="bg-accent text-background font-bold rounded-lg px-5 py-2 hover:bg-accent-hover disabled:bg-surface disabled:text-secondary-text transition-all shadow-lg transform hover:scale-105" disabled={!input.trim() || isLoading}>
-          Send
-        </button>
-      </div>
-    </div>
+  {/* Chat Input */}
+  <div className="flex-1 flex flex-col p-3 bg-background">
+    <ChatInput input={input} setInput={setInput} onSend={handleSend} />
+  </div>
+
+  {/* Floating Send Button */}
+  <div className="absolute bottom-4 right-4 z-10">
+    <button
+      onClick={handleSend}
+      className="bg-accent text-background font-bold rounded-lg px-5 py-2 hover:bg-accent-hover disabled:bg-surface disabled:text-secondary-text transition-all shadow-lg transform hover:scale-105"
+      disabled={!input.trim() || isLoading}
+    >
+      Send
+    </button>
+  </div>
+</div>
+
   );
 };
 

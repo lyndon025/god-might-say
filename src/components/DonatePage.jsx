@@ -26,26 +26,31 @@ const DonatePage = () => {
       </div>
 
       {/* ✅ Ko-fi iframe donation panel at the bottom */}
-<div className="w-full flex flex-col items-center justify-center mt-12 mb-24 space-y-4">
-  <h3 className="text-2xl font-bold text-accent text-center">
-    Donate via PayPal or Card using Ko-fi
-  </h3>
-        <iframe
-          id="kofiframe"
-          src="https://ko-fi.com/lyndon025/?hidefeed=true&widget=true&embed=true&preview=true&theme=dark"
-          title="Ko-fi Donation Panel"
-          style={{
-            border: 'none',
-            width: '50%',
-            height: 'min(600px, 90vh)',
-            padding: '4px',
-            background: '#05122dff',
-            borderRadius: '0.5rem',
-            boxShadow: '0 0 10px rgba(0,0,0,0.05)'
-          }}
-        />
+      <div className="w-full flex flex-col items-center justify-center mt-12 mb-24 space-y-4 px-4">
+        <h3 className="text-2xl font-bold text-accent text-center">
+          Donate via PayPal or Card using Ko-fi
+        </h3>
+        <div className="w-full max-w-2xl" style={{ transform: 'translateZ(0)', willChange: 'transform' }}>
+  <iframe
+    id="kofiframe"
+    src="https://ko-fi.com/lyndon025/?hidefeed=true&widget=true&embed=true&preview=true&theme=dark"
+    title="Ko-fi Donation Panel"
+    style={{
+      border: 'none',
+      width: '100%',
+      height: '600px',
+      padding: '4px',
+      background: '#05122dff',
+      borderRadius: '0.5rem',
+      boxShadow: '0 0 10px rgba(0,0,0,0.05)',
+      overflow: 'hidden',
+      backfaceVisibility: 'hidden',
+      WebkitBackfaceVisibility: 'hidden',
+    }}
+  />
+</div>
+
       </div>
-      <div className="h-128" />
     </div>
   );
 };
