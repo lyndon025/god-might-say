@@ -90,8 +90,9 @@ const ChatScreen = () => {
 <div ref={chatScreenRef} className="h-[calc(100dvh-5rem)] flex flex-col overflow-hidden bg-background">
 
     {/* Chat Area (scrollable) */}
-  <div
-  className="flex-grow overflow-y-auto p-4 md:p-6 space-y-6 min-h-0"
+<div
+  className="overflow-y-auto p-4 md:p-6 space-y-6 min-h-0"
+  style={{ height: `${chatAreaHeight}%` }}
 >
 
       {chatHistory.map((msg, index) => (
@@ -108,20 +109,20 @@ const ChatScreen = () => {
     />
 
     {/* Fixed Footer Input Section */}
-    <div className="sticky bottom-0 left-0 right-0 bg-background p-3 border-t border-surface z-20 max-h-[30%]">
+    <div className="sticky bottom-0 left-0 right-0 bg-background px-3 pt-3 pb-6 border-t border-surface z-20">
+  <div className="relative w-full">
+    <ChatInput input={input} setInput={setInput} onSend={handleSend} />
 
-      <div className="relative w-full flex flex-col">
-        <ChatInput input={input} setInput={setInput} onSend={handleSend} />
+    <button
+      onClick={handleSend}
+      className="absolute right-3 bottom-3 bg-accent text-background font-bold rounded-lg px-5 py-2 hover:bg-accent-hover disabled:bg-surface disabled:text-secondary-text transition-all shadow-lg transform hover:scale-105"
+      disabled={!input.trim() || isLoading}
+    >
+      Send
+    </button>
+  </div>
+</div>
 
-        <button
-          onClick={handleSend}
-          className="absolute right-3 bottom-3 bg-accent text-background font-bold rounded-lg px-5 py-2 hover:bg-accent-hover disabled:bg-surface disabled:text-secondary-text transition-all shadow-lg transform hover:scale-105"
-          disabled={!input.trim() || isLoading}
-        >
-          Send
-        </button>
-      </div>
-    </div>
   </div>
 );
 
