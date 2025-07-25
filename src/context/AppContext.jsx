@@ -1,9 +1,28 @@
 import React, { useState, useEffect, createContext } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, collection, addDoc, serverTimestamp, query, onSnapshot, deleteDoc, getDocs, orderBy } from 'firebase/firestore';
-
-
+import {
+  getAuth,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  signInWithRedirect,
+  getRedirectResult,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  onSnapshot,
+  deleteDoc,
+  getDocs,
+  orderBy
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -30,11 +49,29 @@ export const AppProvider = ({ children }) => {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  // ✅ Only one useEffect for auth and redirect result
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthReady(true);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setAuthReady(true);
+        return;
+      }
+
+      // If not signed in yet, try to complete Facebook redirect login
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          setUser(result.user);
+          console.log("✅ Facebook redirect login successful:", result.user);
+        }
+      } catch (error) {
+        console.error("❌ Facebook redirect error:", error);
+      } finally {
+        setAuthReady(true);
+      }
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -96,11 +133,12 @@ export const AppProvider = ({ children }) => {
       console.error("Error signing in with Google:", error);
     }
   };
+
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      setIsMenuOpen(false); // Optional: closes sidebar
+      await signInWithRedirect(auth, provider);
+      setIsMenuOpen(false);
     } catch (error) {
       console.error("Error signing in with Facebook:", error);
     }
