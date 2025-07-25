@@ -1,7 +1,9 @@
 import React, { useState, useEffect, createContext } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, collection, addDoc, serverTimestamp, query, onSnapshot, deleteDoc, getDocs, orderBy } from 'firebase/firestore';
+
+
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -35,7 +37,7 @@ export const AppProvider = ({ children }) => {
     });
     return () => unsubscribe();
   }, []);
-  
+
   useEffect(() => {
     if (!authReady) return;
 
@@ -94,6 +96,15 @@ export const AppProvider = ({ children }) => {
       console.error("Error signing in with Google:", error);
     }
   };
+  const signInWithFacebook = async () => {
+    const provider = new FacebookAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      setIsMenuOpen(false); // Optional: closes sidebar
+    } catch (error) {
+      console.error("Error signing in with Facebook:", error);
+    }
+  };
 
   const logOut = async () => {
     try {
@@ -137,7 +148,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(favoriteRef, { ...message, timestamp: serverTimestamp() });
     }
   };
-  
+
   const deleteFavorites = async () => {
     if (user) {
       const querySnapshot = await getDocs(collection(db, `users/${user.uid}/favorites`));
@@ -148,7 +159,7 @@ export const AppProvider = ({ children }) => {
 
   const value = {
     user, authReady, isAppLoading,
-    signInWithGoogle, logOut, chatHistory, setChatHistory,
+    signInWithGoogle, signInWithFacebook, logOut, chatHistory, setChatHistory,
     addMessageToHistory, deleteChatHistory, favorites, toggleFavorite,
     deleteFavorites, isLoading, setIsLoading, page, setPage, isMenuOpen, setIsMenuOpen,
   };
