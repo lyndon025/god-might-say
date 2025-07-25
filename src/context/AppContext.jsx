@@ -4,8 +4,6 @@ import {
   getAuth,
   GoogleAuthProvider,
   FacebookAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
   signInWithPopup,
   signOut,
   onAuthStateChanged
@@ -49,29 +47,11 @@ export const AppProvider = ({ children }) => {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // ✅ Only one useEffect for auth and redirect result
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setAuthReady(true);
-        return;
-      }
-
-      // If not signed in yet, try to complete Facebook redirect login
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          setUser(result.user);
-          console.log("✅ Facebook redirect login successful:", result.user);
-        }
-      } catch (error) {
-        console.error("❌ Facebook redirect error:", error);
-      } finally {
-        setAuthReady(true);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthReady(true);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -137,10 +117,11 @@ export const AppProvider = ({ children }) => {
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
     try {
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
       setIsMenuOpen(false);
+      console.log("✅ Facebook popup login successful");
     } catch (error) {
-      console.error("Error signing in with Facebook:", error);
+      console.error("❌ Error signing in with Facebook:", error);
     }
   };
 
