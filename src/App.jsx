@@ -1,5 +1,4 @@
-import React, { useContext } from 'react';
-// Using the new '@' alias
+import React, { useContext, useEffect, useState } from 'react';
 import { AppProvider, AppContext } from '@/context/AppContext';
 import Header from '@/components/Header';
 import SidebarMenu from '@/components/SidebarMenu';
@@ -7,9 +6,21 @@ import MainContent from '@/components/MainContent';
 
 const AppLayout = () => {
   const { isMenuOpen, setIsMenuOpen } = useContext(AppContext);
+  const [vhHeight, setVhHeight] = useState('100vh');
+
+  useEffect(() => {
+    const updateHeight = () => {
+      const height = window.innerHeight;
+      setVhHeight(`${height}px`);
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
   return (
-    <div className="w-full h-screen flex flex-col antialiased">
+    <div className="w-full flex flex-col antialiased" style={{ height: vhHeight }}>
       <Header />
       <SidebarMenu />
       <MainContent />
@@ -35,7 +46,7 @@ const AppGate = () => {
   }
 
   return <AppLayout />;
-}
+};
 
 function App() {
   return (

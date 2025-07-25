@@ -24,10 +24,11 @@ const MainContent = () => {
   };
 
   return (
-    <main className="flex-1 overflow-y-auto">
-      {renderPage()}
-    </main>
-  );
+  <main className="flex-1 flex flex-col overflow-hidden">
+    {renderPage()}
+  </main>
+);
+
 };
 
 export default MainContent;

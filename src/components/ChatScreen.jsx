@@ -87,7 +87,7 @@ const ChatScreen = () => {
   };
 
   return (
-<div ref={chatScreenRef} className="h-[calc(100dvh-5rem)] flex flex-col overflow-hidden bg-background">
+<div ref={chatScreenRef} className="flex flex-col flex-grow overflow-hidden bg-background">
 
     {/* Chat Area (scrollable) */}
 <div
