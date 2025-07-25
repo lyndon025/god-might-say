@@ -98,7 +98,9 @@ export const AppProvider = ({ children }) => {
       };
     } else {
       const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      localHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       setChatHistory(localHistory);
+
       setFavorites([]);
       setIsAppLoading(false);
     }
