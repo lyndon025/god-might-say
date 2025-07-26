@@ -33,10 +33,6 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
@@ -50,22 +46,37 @@ export const AppProvider = ({ children }) => {
   const [isAppLoading, setIsAppLoading] = useState(true);
 
   const authTimeoutRef = useRef(null);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-
   useEffect(() => {
-    // This handles the result of a redirect login
-    getRedirectResult(auth).catch((error) => {
-      console.error("Error processing redirect result:", error);
+    let checkedRedirect = false;
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setAuthReady(true);
+      } else if (!checkedRedirect) {
+        checkedRedirect = true;
+        try {
+          const result = await getRedirectResult(auth);
+          if (result?.user) {
+            console.log("Facebook redirect login success:", result.user);
+            setUser(result.user);
+          }
+        } catch (error) {
+          console.error("Redirect login error:", error);
+        } finally {
+          setAuthReady(true);
+        }
+      } else {
+        setAuthReady(true);
+      }
     });
 
-    // This sets the user state whenever auth changes (login, logout, or on page load)
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setAuthReady(true);
-    });
-
-    return () => unsubscribe(); // Cleanup on unmount
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -148,11 +159,15 @@ export const AppProvider = ({ children }) => {
 
   const logOut = async () => {
     try {
-      await signOut(auth); // That's all you need
+      await signOut(auth);
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     } catch (error) {
       console.error("Sign-out Error:", error);
     }
   };
+
   const addMessageToHistory = async (message) => {
     if (user) {
       await addDoc(collection(db, `users/${user.uid}/chatHistory`), message);
