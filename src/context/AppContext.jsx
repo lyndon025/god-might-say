@@ -52,6 +52,12 @@ export const AppProvider = ({ children }) => {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   useEffect(() => {
+    if (!authReady && window.location.href.includes('redirect')) {
+      window.location.href = window.location.origin;
+    }
+  }, [authReady]);
+
+  useEffect(() => {
     let checkedRedirect = false;
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -64,12 +70,11 @@ export const AppProvider = ({ children }) => {
         localStorage.removeItem("fb-login-started");
       } else if (loginStarted && !checkedRedirect) {
         checkedRedirect = true;
-        // If login was started, check for redirect result
+
         try {
           const result = await getRedirectResult(auth);
-
-          alert("REDIRECT RESULT: " + JSON.stringify(result));
-          alert("CURRENT USER: " + JSON.stringify(auth.currentUser));
+          console.log("Redirect result:", result);
+          console.log("Auth user after redirect:", auth.currentUser);
 
           if (result?.user) {
             console.log("Facebook redirect login success:", result.user);
@@ -81,9 +86,6 @@ export const AppProvider = ({ children }) => {
           localStorage.removeItem("fb-login-started");
           setAuthReady(true);
         }
-
-
-        //
       } else {
         setAuthReady(true);
       }
@@ -161,8 +163,6 @@ export const AppProvider = ({ children }) => {
 
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
-
-    // Force use of popup on all platforms (even on mobile)
     provider.setCustomParameters({ display: 'popup' });
 
     authTimeoutRef.current = setTimeout(() => {
@@ -170,7 +170,12 @@ export const AppProvider = ({ children }) => {
     }, 10000);
 
     try {
-      await signInWithPopup(auth, provider);
+      if (isMobile) {
+        localStorage.setItem("fb-login-started", "true");
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
       setIsMenuOpen(false);
     } catch (error) {
       console.error("Facebook Sign-in Error:", error.message);
@@ -183,18 +188,16 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-
   const logOut = async () => {
     try {
       await signOut(auth);
       setTimeout(() => {
-        window.location.reload(); // refresh UI and reset state
-      }, 100); // slight delay for cleanup
+        window.location.reload();
+      }, 100);
     } catch (error) {
       console.error("Sign-out Error:", error);
     }
   };
-
 
   const addMessageToHistory = async (message) => {
     if (user) {
