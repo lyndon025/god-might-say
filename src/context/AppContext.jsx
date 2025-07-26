@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext } from 'react';
+import React, { useState, useEffect, createContext, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
@@ -45,42 +45,41 @@ export const AppProvider = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
 
+  const authTimeoutRef = useRef(null);
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
-
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  // Handle Facebook redirect result (only once, on mount)
   useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          console.log("Facebook redirect login successful:", result.user);
-          setUser(result.user);
-        }
-      })
-      .catch((error) => {
-        console.error("Facebook redirect login error:", error);
-      });
-  }, []);
+    let checkedRedirect = false;
 
-  // Monitor Firebase auth state
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        console.log("Firebase auth state changed: logged in", currentUser);
+        console.log("User is logged in:", currentUser);
         setUser(currentUser);
+        setAuthReady(true);
+      } else if (!checkedRedirect) {
+        checkedRedirect = true;
+        try {
+          const result = await getRedirectResult(auth);
+          if (result?.user) {
+            console.log("Redirect result login:", result.user);
+            setUser(result.user);
+          }
+        } catch (error) {
+          console.error("Redirect login error:", error);
+        } finally {
+          setAuthReady(true);
+        }
       } else {
-        console.log("Firebase auth state changed: logged out");
-        setUser(null);
+        setAuthReady(true);
       }
-      setAuthReady(true);
     });
+
     return () => unsubscribe();
   }, []);
 
-  // Sync chat and favorites after login
   useEffect(() => {
     if (!authReady) return;
 
@@ -130,17 +129,30 @@ export const AppProvider = ({ children }) => {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    authTimeoutRef.current = setTimeout(() => {
+      console.warn("Google login timeout — fallback");
+    }, 10000);
+
     try {
       await signInWithPopup(auth, provider);
       setIsMenuOpen(false);
     } catch (error) {
       console.error("Google Sign-in Error:", error);
-      alert("Google login failed. Check console.");
+      if (
+        error.code !== 'auth/cancelled-popup-request' &&
+        error.code !== 'auth/popup-closed-by-user'
+      ) {
+        alert("Google login failed. Check console.");
+      }
     }
   };
 
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
+    authTimeoutRef.current = setTimeout(() => {
+      console.warn("Facebook login timeout — fallback");
+    }, 10000);
+
     try {
       if (isMobile) {
         await signInWithRedirect(auth, provider);
@@ -150,7 +162,12 @@ export const AppProvider = ({ children }) => {
       setIsMenuOpen(false);
     } catch (error) {
       console.error("Facebook Sign-in Error:", error.message);
-      alert("Facebook login failed. Check console.");
+      if (
+        error.code !== 'auth/cancelled-popup-request' &&
+        error.code !== 'auth/popup-closed-by-user'
+      ) {
+        alert("Facebook login failed. Check console.");
+      }
     }
   };
 
