@@ -55,21 +55,26 @@ export const AppProvider = ({ children }) => {
     let checkedRedirect = false;
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      const loginStarted = localStorage.getItem("fb-login-started");
+
       if (currentUser) {
         console.log("User is logged in:", currentUser);
         setUser(currentUser);
         setAuthReady(true);
-      } else if (!checkedRedirect) {
+        localStorage.removeItem("fb-login-started");
+      } else if (loginStarted && !checkedRedirect) {
         checkedRedirect = true;
+
         try {
           const result = await getRedirectResult(auth);
           if (result?.user) {
-            console.log("Redirect result login:", result.user);
+            console.log("Facebook redirect login success:", result.user);
             setUser(result.user);
           }
         } catch (error) {
           console.error("Redirect login error:", error);
         } finally {
+          localStorage.removeItem("fb-login-started");
           setAuthReady(true);
         }
       } else {
@@ -149,16 +154,19 @@ export const AppProvider = ({ children }) => {
 
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
+
+    if (isMobile) {
+      localStorage.setItem("fb-login-started", "true");
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+
     authTimeoutRef.current = setTimeout(() => {
       console.warn("Facebook login timeout — fallback");
     }, 10000);
 
     try {
-      if (isMobile) {
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
+      await signInWithPopup(auth, provider);
       setIsMenuOpen(false);
     } catch (error) {
       console.error("Facebook Sign-in Error:", error.message);
