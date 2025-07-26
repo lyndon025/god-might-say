@@ -52,30 +52,16 @@ export const AppProvider = ({ children }) => {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   useEffect(() => {
-    if (!authReady && window.location.href.includes('redirect')) {
-      window.location.href = window.location.origin;
-    }
-  }, [authReady]);
-
-  useEffect(() => {
     let checkedRedirect = false;
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      const loginStarted = localStorage.getItem("fb-login-started");
-
       if (currentUser) {
-        console.log("User is logged in:", currentUser);
         setUser(currentUser);
         setAuthReady(true);
-        localStorage.removeItem("fb-login-started");
-      } else if (loginStarted && !checkedRedirect) {
+      } else if (!checkedRedirect) {
         checkedRedirect = true;
-
         try {
           const result = await getRedirectResult(auth);
-          console.log("Redirect result:", result);
-          console.log("Auth user after redirect:", auth.currentUser);
-
           if (result?.user) {
             console.log("Facebook redirect login success:", result.user);
             setUser(result.user);
@@ -83,7 +69,6 @@ export const AppProvider = ({ children }) => {
         } catch (error) {
           console.error("Redirect login error:", error);
         } finally {
-          localStorage.removeItem("fb-login-started");
           setAuthReady(true);
         }
       } else {
@@ -163,28 +148,12 @@ export const AppProvider = ({ children }) => {
 
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
-    provider.setCustomParameters({ display: 'popup' });
-
-    authTimeoutRef.current = setTimeout(() => {
-      console.warn("Facebook login timeout — fallback");
-    }, 10000);
-
     try {
-      if (isMobile) {
-        localStorage.setItem("fb-login-started", "true");
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
+      await signInWithRedirect(auth, provider);
       setIsMenuOpen(false);
     } catch (error) {
-      console.error("Facebook Sign-in Error:", error.message);
-      if (
-        error.code !== 'auth/cancelled-popup-request' &&
-        error.code !== 'auth/popup-closed-by-user'
-      ) {
-        alert("Facebook login failed. Check console.");
-      }
+      console.error("Facebook Redirect Sign-in Error:", error);
+      alert("Facebook login failed. Check console.");
     }
   };
 
@@ -243,17 +212,26 @@ export const AppProvider = ({ children }) => {
   };
 
   const value = {
-    user, authReady, isAppLoading,
-    signInWithGoogle, signInWithFacebook, logOut,
-    chatHistory, setChatHistory, addMessageToHistory,
-    deleteChatHistory, favorites, toggleFavorite,
-    deleteFavorites, isLoading, setIsLoading,
-    page, setPage, isMenuOpen, setIsMenuOpen,
+    user,
+    authReady,
+    isAppLoading,
+    signInWithGoogle,
+    signInWithFacebook,
+    logOut,
+    chatHistory,
+    setChatHistory,
+    addMessageToHistory,
+    deleteChatHistory,
+    favorites,
+    toggleFavorite,
+    deleteFavorites,
+    isLoading,
+    setIsLoading,
+    page,
+    setPage,
+    isMenuOpen,
+    setIsMenuOpen
   };
 
-  return (
-    <AppContext.Provider value={value}>
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
