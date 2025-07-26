@@ -51,49 +51,40 @@ export const AppProvider = ({ children }) => {
   const db = getFirestore(app);
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+  // 🚨 Get redirect result immediately after load (important for Facebook login on mobile)
   useEffect(() => {
-    if (!authReady && window.location.href.includes('redirect')) {
-      window.location.href = window.location.origin;
-    }
-  }, [authReady]);
+    const loginStarted = localStorage.getItem("fb-login-started");
 
-  useEffect(() => {
-    let checkedRedirect = false;
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      const loginStarted = localStorage.getItem("fb-login-started");
-
-      if (currentUser) {
-        console.log("User is logged in:", currentUser);
-        setUser(currentUser);
-        setAuthReady(true);
-        localStorage.removeItem("fb-login-started");
-      } else if (loginStarted && !checkedRedirect) {
-        checkedRedirect = true;
-
-        try {
-          const result = await getRedirectResult(auth);
-          console.log("Redirect result:", result);
-          console.log("Auth user after redirect:", auth.currentUser);
-
-          if (result?.user) {
-            console.log("Facebook redirect login success:", result.user);
-            setUser(result.user);
-          }
-        } catch (error) {
-          console.error("Redirect login error:", error);
-        } finally {
-          localStorage.removeItem("fb-login-started");
-          setAuthReady(true);
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Facebook redirect result:", result.user);
+          setUser(result.user);
+        } else {
+          console.log("Redirect result: null");
         }
-      } else {
+      })
+      .catch((error) => {
+        console.error("getRedirectResult error:", error);
+      })
+      .finally(() => {
+        localStorage.removeItem("fb-login-started");
         setAuthReady(true);
+      });
+  }, []);
+
+  // ✅ Listen to auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        console.log("User is signed in:", currentUser);
+        setUser(currentUser);
       }
     });
-
     return () => unsubscribe();
   }, []);
 
+  // 🔁 Load Firestore content or fallback to local
   useEffect(() => {
     if (!authReady) return;
 
