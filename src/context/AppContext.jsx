@@ -182,10 +182,14 @@ export const AppProvider = ({ children }) => {
   const logOut = async () => {
     try {
       await signOut(auth);
+      setTimeout(() => {
+        window.location.reload(); // refresh UI and reset state
+      }, 100); // slight delay for cleanup
     } catch (error) {
       console.error("Sign-out Error:", error);
     }
   };
+
 
   const addMessageToHistory = async (message) => {
     if (user) {
