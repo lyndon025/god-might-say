@@ -6,7 +6,7 @@ const Header = () => {
   const { isMenuOpen, setIsMenuOpen, page, setPage } = useContext(AppContext);
 
   // The back arrow will now show on all secondary pages.
-  const showBackButton = page === 'favorites' || page === 'about' || page === 'donate';
+const showBackButton = ['favorites', 'about', 'donate', 'motd'].includes(page);
 
   return (
     <header className="flex items-center justify-between p-4 bg-surface/80 backdrop-blur-sm border-b border-accent/20 shadow-md z-20">
