@@ -153,31 +153,29 @@ export const AppProvider = ({ children }) => {
   };
 
   const signInWithFacebook = async () => {
-    const provider = new FacebookAuthProvider();
+  const provider = new FacebookAuthProvider();
 
-    if (isMobile) {
-      localStorage.setItem("fb-login-started", "true");
-      await signInWithRedirect(auth, provider);
-      return;
+  // Force use of popup on all platforms (even on mobile)
+  provider.setCustomParameters({ display: 'popup' });
+
+  authTimeoutRef.current = setTimeout(() => {
+    console.warn("Facebook login timeout — fallback");
+  }, 10000);
+
+  try {
+    await signInWithPopup(auth, provider);
+    setIsMenuOpen(false);
+  } catch (error) {
+    console.error("Facebook Sign-in Error:", error.message);
+    if (
+      error.code !== 'auth/cancelled-popup-request' &&
+      error.code !== 'auth/popup-closed-by-user'
+    ) {
+      alert("Facebook login failed. Check console.");
     }
+  }
+};
 
-    authTimeoutRef.current = setTimeout(() => {
-      console.warn("Facebook login timeout — fallback");
-    }, 10000);
-
-    try {
-      await signInWithPopup(auth, provider);
-      setIsMenuOpen(false);
-    } catch (error) {
-      console.error("Facebook Sign-in Error:", error.message);
-      if (
-        error.code !== 'auth/cancelled-popup-request' &&
-        error.code !== 'auth/popup-closed-by-user'
-      ) {
-        alert("Facebook login failed. Check console.");
-      }
-    }
-  };
 
   const logOut = async () => {
     try {
