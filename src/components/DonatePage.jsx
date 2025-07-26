@@ -2,7 +2,7 @@ import React from 'react';
 
 const DonatePage = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-start p-6 pb-24 space-y-10">
+<div className="flex-1 w-full overflow-y-auto flex flex-col items-center justify-start p-6 pb-24 space-y-10">
       <div className="max-w-2xl w-full text-center">
         <h2 className="text-4xl font-serif text-primary-text mb-4">Support the Mission</h2>
 
