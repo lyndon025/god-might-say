@@ -162,31 +162,30 @@ export const AppProvider = ({ children }) => {
   };
 
   const signInWithFacebook = async () => {
-    const provider = new FacebookAuthProvider();
-    provider.setCustomParameters({ display: 'popup' });
+  const provider = new FacebookAuthProvider();
+  provider.setCustomParameters({ display: 'popup' });
 
-    authTimeoutRef.current = setTimeout(() => {
-      console.warn("Facebook login timeout — fallback");
-    }, 10000);
+  authTimeoutRef.current = setTimeout(() => {
+    console.warn("Facebook login timeout — fallback");
+  }, 10000);
 
-    try {
-      if (isMobile) {
-        localStorage.setItem("fb-login-started", "true");
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
-      setIsMenuOpen(false);
-    } catch (error) {
-      console.error("Facebook Sign-in Error:", error.message);
-      if (
-        error.code !== 'auth/cancelled-popup-request' &&
-        error.code !== 'auth/popup-closed-by-user'
-      ) {
-        alert("Facebook login failed. Check console.");
-      }
+  try {
+    await signInWithPopup(auth, provider);  // 🔁 Always use popup
+    setIsMenuOpen(false);
+  } catch (error) {
+    console.error("Facebook Sign-in Error:", error.message);
+
+    if (
+      error.code === 'auth/popup-blocked' ||
+      error.code === 'auth/popup-closed-by-user'
+    ) {
+      alert("Popup was blocked or closed. Please try again in your browser (not Messenger or Gmail app).");
+    } else {
+      alert("Facebook login failed. Check console.");
     }
-  };
+  }
+};
+
 
   const logOut = async () => {
     try {
