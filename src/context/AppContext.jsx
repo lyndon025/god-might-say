@@ -21,7 +21,7 @@ import {
   onSnapshot,
   deleteDoc,
   getDocs,
-  orderBy // Keeping orderBy for now, but note about indexes for user
+  orderBy
 } from 'firebase/firestore';
 
 // Initialize Firebase outside the component to ensure it's only done once
@@ -42,63 +42,72 @@ export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [authReady, setAuthReady] = useState(false);
+  const [authReady, setAuthReady] = useState(false); // Indicates if Firebase auth state has been fully checked
   const [chatHistory, setChatHistory] = useState([]);
   const [favorites, setFavorites] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // For specific actions like AI generation
   const [page, setPage] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAppLoading, setIsAppLoading] = useState(true);
+  const [isAppLoading, setIsAppLoading] = useState(true); // For initial app data loading
 
   const authTimeoutRef = useRef(null);
-  // Detect mobile once
+  // Detect mobile once on component mount
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  // Effect for handling initial authentication state and redirect results
+  // Primary effect for managing authentication state and redirect results
   useEffect(() => {
-    // Flag to ensure getRedirectResult is only processed once on initial load
-    let initialRedirectCheckDone = false;
+    // Flag to ensure getRedirectResult is only processed once on initial app load
+    let hasCheckedRedirect = false;
 
-    // First, check for redirect results
-    const checkRedirectAndAuthState = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          console.log("Firebase redirect login success:", result.user);
-          setUser(result.user);
-        }
-      } catch (error) {
-        console.error("Firebase Redirect login error:", error);
-      } finally {
-        initialRedirectCheckDone = true; // Mark as done regardless of success/failure
-        // Set up the auth state listener after checking for redirect result
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-          setUser(currentUser);
-          setAuthReady(true); // Now auth is ready
-          // Clear any timeout set for auth if it was for signInWithPopup
-          if (authTimeoutRef.current) {
-            clearTimeout(authTimeoutRef.current);
-            authTimeoutRef.current = null;
-          }
-        });
-        // Cleanup listener on unmount
-        return unsubscribe;
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      // Clear any pending popup timeout
+      if (authTimeoutRef.current) {
+        clearTimeout(authTimeoutRef.current);
+        authTimeoutRef.current = null;
       }
-    };
 
-    const unsubscribePromise = checkRedirectAndAuthState();
+      if (currentUser) {
+        // User is logged in (either initially, or after a popup/redirect)
+        setUser(currentUser);
+        setAuthReady(true);
+      } else {
+        // No current user. Check if this is a redirect landing.
+        if (!hasCheckedRedirect) {
+          try {
+            const result = await getRedirectResult(auth);
+            if (result?.user) {
+              // Redirect successfully handled, user is now signed in
+              console.log("Firebase redirect login success:", result.user);
+              setUser(result.user); // setUser will trigger onAuthStateChanged again with the new user
+            } else {
+              // No redirect result, user is genuinely logged out or not logged in initially
+              setUser(null);
+            }
+          } catch (error) {
+            // Handle errors during redirect processing (e.g., auth/cancelled-popup-request)
+            console.error("Redirect login error:", error);
+            setUser(null); // Ensure user is null on redirect error
+            // Optionally, show a user-friendly error message here (e.g., via a toast/modal state)
+          } finally {
+            hasCheckedRedirect = true; // Mark that we've checked for redirect results
+            setAuthReady(true); // Auth state is now finalized
+          }
+        } else {
+          // If onAuthStateChanged fires with null user AND we've already checked for redirect,
+          // then the user is definitively logged out.
+          setUser(null);
+          setAuthReady(true); // Auth state is now finalized
+        }
+      }
+    });
 
-    // Ensure unsubscribe is called if the component unmounts quickly
-    return () => {
-      unsubscribePromise.then(unsubscribe => {
-        if (unsubscribe) unsubscribe();
-      });
-    };
+    // Cleanup function for onAuthStateChanged listener
+    return () => unsubscribeAuth();
   }, []); // Empty dependency array means this effect runs only once on mount
 
-  // Effect for loading Firestore data or local storage
+  // Effect for loading Firestore data or local storage based on auth state
   useEffect(() => {
-    // Only proceed if authentication state is ready
+    // This effect should only run once auth state is confirmed (authReady is true)
     if (!authReady) {
       return;
     }
@@ -109,11 +118,15 @@ export const AppProvider = ({ children }) => {
 
       const checkInitialLoadComplete = () => {
         if (chatLoaded && favsLoaded) {
-          setIsAppLoading(false);
+          setIsAppLoading(false); // Finished loading user-specific data
         }
       };
 
-      // Firestore queries - consider adding indexes in Firebase Console if you encounter errors or performance issues with orderBy
+      // Firestore queries with orderBy:
+      // IMPORTANT: For `orderBy` clauses that are not on the document ID,
+      // you will likely need to create a composite index in your Firebase Console
+      // (Firestore -> Indexes) if your dataset grows, otherwise queries may fail
+      // or be very slow.
       const chatQuery = query(collection(db, `users/${user.uid}/chatHistory`), orderBy('timestamp', 'asc'));
       const favQuery = query(collection(db, `users/${user.uid}/favorites`), orderBy('timestamp', 'desc'));
 
@@ -142,17 +155,17 @@ export const AppProvider = ({ children }) => {
         unsubscribeFavorites();
       };
     } else {
-      // Handle unauthenticated user (local storage)
+      // User is logged out, load from local storage
       const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      // Ensure local history is sorted by timestamp
       localHistory.sort((a, b) => {
-        // Ensure timestamp is treated as a Date object for sorting
         const dateA = new Date(a.timestamp);
         const dateB = new Date(b.timestamp);
         return dateA - dateB;
       });
       setChatHistory(localHistory);
       setFavorites([]); // Clear favorites for logged out users
-      setIsAppLoading(false);
+      setIsAppLoading(false); // No user data to load, so app is ready
     }
   }, [user, authReady]); // Depend on user and authReady states
 
@@ -165,10 +178,10 @@ export const AppProvider = ({ children }) => {
       clearTimeout(authTimeoutRef.current);
     }
 
-    // Set a timeout, especially for popup, in case it gets stuck
+    // Set a timeout, especially for popup, in case it gets stuck or blocked
     authTimeoutRef.current = setTimeout(() => {
-      console.warn("Google login process timeout. If no popup appeared, it might be blocked.");
-      // You might want to show a message to the user here
+      console.warn("Google login process timed out. If no popup appeared, it might be blocked or there's a network issue.");
+      // You might want to show a message to the user here (e.g., "Login process taking longer than expected...")
     }, 15000); // 15 seconds timeout
 
     try {
@@ -177,7 +190,7 @@ export const AppProvider = ({ children }) => {
       } else {
         await signInWithPopup(auth, provider);
       }
-      // authReady will be set true by onAuthStateChanged listener
+      // onAuthStateChanged listener will handle setting the user state and clearing timeout
     } catch (error) {
       console.error("Google Sign-in Error:", error);
       // Clean up timeout on error
@@ -185,14 +198,15 @@ export const AppProvider = ({ children }) => {
         clearTimeout(authTimeoutRef.current);
         authTimeoutRef.current = null;
       }
-      if (
-        error.code !== 'auth/cancelled-popup-request' &&
-        error.code !== 'auth/popup-closed-by-user'
-      ) {
-        // Using a custom modal/toast message instead of alert for better UX
-        // You'll need to implement a UI for this, e.g., a state variable to show an error message
-        console.log("Google login failed: " + error.message);
+      // Provide more specific error feedback without using alert
+      let errorMessage = "Google login failed.";
+      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+        errorMessage = "Login cancelled or popup closed.";
+      } else if (error.message) {
+        errorMessage += ` Details: ${error.message}`;
       }
+      console.log(errorMessage);
+      // For a real app, you'd update a state variable like `setErrorMessage(errorMessage)`
     }
   };
 
@@ -200,25 +214,54 @@ export const AppProvider = ({ children }) => {
     const provider = new FacebookAuthProvider();
     setIsMenuOpen(false); // Close menu on login attempt
 
-    // Using signInWithRedirect always for Facebook due to common mobile issues
+    // Clear any existing timeout before setting a new one
+    if (authTimeoutRef.current) {
+      clearTimeout(authTimeoutRef.current);
+    }
+    
+    // Set a timeout for popup only, redirect will not block
+    if (!isMobile) {
+        authTimeoutRef.current = setTimeout(() => {
+            console.warn("Facebook login process timed out. If no popup appeared, it might be blocked or there's a network issue.");
+        }, 15000); // 15 seconds timeout
+    }
+
     try {
-      await signInWithRedirect(auth, provider);
-      // authReady will be set true by onAuthStateChanged listener
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider); // Use popup for PC
+      }
+      // onAuthStateChanged listener will handle setting the user state and clearing timeout
     } catch (error) {
-      console.error("Facebook Redirect Sign-in Error:", error);
-      // Using a custom modal/toast message instead of alert for better UX
-      console.log("Facebook login failed: " + error.message);
+      console.error("Facebook Sign-in Error:", error);
+      // Clean up timeout on error
+      if (authTimeoutRef.current) {
+        clearTimeout(authTimeoutRef.current);
+        authTimeoutRef.current = null;
+      }
+      // Provide more specific error feedback without using alert
+      let errorMessage = "Facebook login failed.";
+      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+        errorMessage = "Login cancelled or popup closed.";
+      } else if (error.message) {
+        errorMessage += ` Details: ${error.message}`;
+      }
+      console.log(errorMessage);
+      // For a real app, you'd update a state variable like `setErrorMessage(errorMessage)`
     }
   };
 
   const logOut = async () => {
     try {
       await signOut(auth);
-      setUser(null); // Explicitly clear user state immediately
-      setChatHistory([]); // Clear chat history on logout
-      setFavorites([]); // Clear favorites on logout
-      setPage('home'); // Reset page to home or appropriate default
-      // No window.location.reload() for smoother UX
+      // Firebase's onAuthStateChanged listener will automatically set user to null
+      // and trigger the cleanup for chatHistory/favorites.
+      // Explicitly clearing state here can cause a momentary flash, but ensures immediate UI update.
+      setUser(null);
+      setChatHistory([]);
+      setFavorites([]);
+      setPage('home'); // Reset page to default after logout
     } catch (error) {
       console.error("Sign-out Error:", error);
     }
@@ -228,13 +271,13 @@ export const AppProvider = ({ children }) => {
     if (user) {
       await addDoc(collection(db, `users/${user.uid}/chatHistory`), {
         ...message,
-        timestamp: serverTimestamp() // Ensure timestamp is set on Firestore
+        timestamp: serverTimestamp() // Ensures server-generated timestamp for consistency
       });
     } else {
       const localMessage = { ...message, timestamp: new Date().toISOString() };
       const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
       const newHistory = [...localHistory, localMessage];
-      // Sort local history to ensure chronological order after adding new message
+      // Sort local history to ensure chronological order for display
       newHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       setChatHistory(newHistory);
       localStorage.setItem('chatHistory', JSON.stringify(newHistory));
@@ -243,7 +286,7 @@ export const AppProvider = ({ children }) => {
 
   const deleteChatHistory = async () => {
     if (user) {
-      // Get all documents in the collection and delete them in a batch
+      // Fetch all docs and delete them in a batch-like operation
       const chatCollectionRef = collection(db, `users/${user.uid}/chatHistory`);
       const snapshot = await getDocs(chatCollectionRef);
       const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
@@ -252,17 +295,18 @@ export const AppProvider = ({ children }) => {
       localStorage.removeItem('chatHistory');
       setChatHistory([]);
     }
-    setIsMenuOpen(false);
+    setIsMenuOpen(false); // Close menu after action
   };
 
   const toggleFavorite = async (message) => {
-    if (!user || !message.id) return; // message.id is required for Firestore doc ID
+    if (!user || !message.id) return; // message.id is crucial as it's used for the doc ID
     const favoriteRef = doc(db, `users/${user.uid}/favorites`, message.id);
     const isFavorited = favorites.some(fav => fav.id === message.id);
+
     if (isFavorited) {
       await deleteDoc(favoriteRef);
     } else {
-      // When setting a favorite, ensure to include relevant data from the message
+      // Store the message content and add a timestamp
       await setDoc(favoriteRef, { ...message, timestamp: serverTimestamp() });
     }
   };
