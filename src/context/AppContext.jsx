@@ -1,11 +1,11 @@
 import React, { useState, useEffect, createContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import {
-
   getAuth,
   GoogleAuthProvider,
   FacebookAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   getRedirectResult,
   signOut,
   onAuthStateChanged
@@ -49,28 +49,38 @@ export const AppProvider = ({ children }) => {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // Handle Facebook redirect result (only once, on mount)
   useEffect(() => {
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
-          console.log("Redirect login successful");
+          console.log("Facebook redirect login successful:", result.user);
           setUser(result.user);
-          setAuthReady(true);
         }
       })
       .catch((error) => {
-        console.error("Redirect login error", error);
+        console.error("Facebook redirect login error:", error);
       });
   }, []);
 
+  // Monitor Firebase auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+      if (currentUser) {
+        console.log("Firebase auth state changed: logged in", currentUser);
+        setUser(currentUser);
+      } else {
+        console.log("Firebase auth state changed: logged out");
+        setUser(null);
+      }
       setAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
 
+  // Sync chat and favorites after login
   useEffect(() => {
     if (!authReady) return;
 
@@ -79,15 +89,14 @@ export const AppProvider = ({ children }) => {
       let favsLoaded = false;
 
       const checkInitialLoadComplete = () => {
-        if (chatLoaded && favsLoaded) {
-          setIsAppLoading(false);
-        }
+        if (chatLoaded && favsLoaded) setIsAppLoading(false);
       };
 
       const chatQuery = query(collection(db, `users/${user.uid}/chatHistory`), orderBy('timestamp', 'asc'));
+      const favQuery = query(collection(db, `users/${user.uid}/favorites`), orderBy('timestamp', 'desc'));
+
       const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
-        const historyFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setChatHistory(historyFromDb);
+        setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         chatLoaded = true;
         checkInitialLoadComplete();
       }, (error) => {
@@ -96,10 +105,8 @@ export const AppProvider = ({ children }) => {
         checkInitialLoadComplete();
       });
 
-      const favQuery = query(collection(db, `users/${user.uid}/favorites`), orderBy('timestamp', 'desc'));
       const unsubscribeFavorites = onSnapshot(favQuery, (snapshot) => {
-        const favsFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setFavorites(favsFromDb);
+        setFavorites(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         favsLoaded = true;
         checkInitialLoadComplete();
       }, (error) => {
@@ -116,7 +123,6 @@ export const AppProvider = ({ children }) => {
       const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
       localHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       setChatHistory(localHistory);
-
       setFavorites([]);
       setIsAppLoading(false);
     }
@@ -128,18 +134,16 @@ export const AppProvider = ({ children }) => {
       await signInWithPopup(auth, provider);
       setIsMenuOpen(false);
     } catch (error) {
-      console.error("Error signing in with Google:", error);
+      console.error("Google Sign-in Error:", error);
+      alert("Google login failed. Check console.");
     }
   };
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
-
     try {
       if (isMobile) {
-        await signInWithRedirect(auth, provider);  // ✅ Mobile fix
+        await signInWithRedirect(auth, provider);
       } else {
         await signInWithPopup(auth, provider);
       }
@@ -154,7 +158,7 @@ export const AppProvider = ({ children }) => {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("Sign-out Error:", error);
     }
   };
 
@@ -172,8 +176,8 @@ export const AppProvider = ({ children }) => {
 
   const deleteChatHistory = async () => {
     if (user) {
-      const querySnapshot = await getDocs(collection(db, `users/${user.uid}/chatHistory`));
-      const deletePromises = querySnapshot.docs.map((doc) => deleteDoc(doc.ref));
+      const snapshot = await getDocs(collection(db, `users/${user.uid}/chatHistory`));
+      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
     } else {
       localStorage.removeItem('chatHistory');
@@ -195,18 +199,24 @@ export const AppProvider = ({ children }) => {
 
   const deleteFavorites = async () => {
     if (user) {
-      const querySnapshot = await getDocs(collection(db, `users/${user.uid}/favorites`));
-      const deletePromises = querySnapshot.docs.map((doc) => deleteDoc(doc.ref));
+      const snapshot = await getDocs(collection(db, `users/${user.uid}/favorites`));
+      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
     }
   };
 
   const value = {
     user, authReady, isAppLoading,
-    signInWithGoogle, signInWithFacebook, logOut, chatHistory, setChatHistory,
-    addMessageToHistory, deleteChatHistory, favorites, toggleFavorite,
-    deleteFavorites, isLoading, setIsLoading, page, setPage, isMenuOpen, setIsMenuOpen,
+    signInWithGoogle, signInWithFacebook, logOut,
+    chatHistory, setChatHistory, addMessageToHistory,
+    deleteChatHistory, favorites, toggleFavorite,
+    deleteFavorites, isLoading, setIsLoading,
+    page, setPage, isMenuOpen, setIsMenuOpen,
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+    </AppContext.Provider>
+  );
 };
