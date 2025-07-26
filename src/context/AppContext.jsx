@@ -1,10 +1,12 @@
 import React, { useState, useEffect, createContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import {
+
   getAuth,
   GoogleAuthProvider,
   FacebookAuthProvider,
   signInWithPopup,
+  getRedirectResult,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -46,6 +48,20 @@ export const AppProvider = ({ children }) => {
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Redirect login successful");
+          setUser(result.user);
+          setAuthReady(true);
+        }
+      })
+      .catch((error) => {
+        console.error("Redirect login error", error);
+      });
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -116,14 +132,21 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
   const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
+
     try {
-      await signInWithPopup(auth, provider);
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);  // ✅ Mobile fix
+      } else {
+        await signInWithPopup(auth, provider);
+      }
       setIsMenuOpen(false);
-      console.log("✅ Facebook popup login successful");
     } catch (error) {
-      console.error("❌ Error signing in with Facebook:", error);
+      console.error("Facebook Sign-in Error:", error.message);
+      alert("Facebook login failed. Check console.");
     }
   };
 
