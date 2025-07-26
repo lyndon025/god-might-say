@@ -64,9 +64,13 @@ export const AppProvider = ({ children }) => {
         localStorage.removeItem("fb-login-started");
       } else if (loginStarted && !checkedRedirect) {
         checkedRedirect = true;
-
+        // If login was started, check for redirect result
         try {
           const result = await getRedirectResult(auth);
+
+          alert("REDIRECT RESULT: " + JSON.stringify(result));
+          alert("CURRENT USER: " + JSON.stringify(auth.currentUser));
+
           if (result?.user) {
             console.log("Facebook redirect login success:", result.user);
             setUser(result.user);
@@ -77,82 +81,91 @@ export const AppProvider = ({ children }) => {
           localStorage.removeItem("fb-login-started");
           setAuthReady(true);
         }
-      } else {
+
+
+        //
+      } catch (error) {
+        console.error("Redirect login error:", error);
+      } finally {
+        localStorage.removeItem("fb-login-started");
         setAuthReady(true);
       }
+    } else {
+      setAuthReady(true);
+    }
     });
 
-    return () => unsubscribe();
-  }, []);
+  return () => unsubscribe();
+}, []);
 
-  useEffect(() => {
-    if (!authReady) return;
+useEffect(() => {
+  if (!authReady) return;
 
-    if (user) {
-      let chatLoaded = false;
-      let favsLoaded = false;
+  if (user) {
+    let chatLoaded = false;
+    let favsLoaded = false;
 
-      const checkInitialLoadComplete = () => {
-        if (chatLoaded && favsLoaded) setIsAppLoading(false);
-      };
+    const checkInitialLoadComplete = () => {
+      if (chatLoaded && favsLoaded) setIsAppLoading(false);
+    };
 
-      const chatQuery = query(collection(db, `users/${user.uid}/chatHistory`), orderBy('timestamp', 'asc'));
-      const favQuery = query(collection(db, `users/${user.uid}/favorites`), orderBy('timestamp', 'desc'));
+    const chatQuery = query(collection(db, `users/${user.uid}/chatHistory`), orderBy('timestamp', 'asc'));
+    const favQuery = query(collection(db, `users/${user.uid}/favorites`), orderBy('timestamp', 'desc'));
 
-      const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
-        setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        chatLoaded = true;
-        checkInitialLoadComplete();
-      }, (error) => {
-        console.error("Firestore Chat History Error:", error);
-        chatLoaded = true;
-        checkInitialLoadComplete();
-      });
+    const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
+      setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      chatLoaded = true;
+      checkInitialLoadComplete();
+    }, (error) => {
+      console.error("Firestore Chat History Error:", error);
+      chatLoaded = true;
+      checkInitialLoadComplete();
+    });
 
-      const unsubscribeFavorites = onSnapshot(favQuery, (snapshot) => {
-        setFavorites(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        favsLoaded = true;
-        checkInitialLoadComplete();
-      }, (error) => {
-        console.error("Firestore Favorites Error:", error);
-        favsLoaded = true;
-        checkInitialLoadComplete();
-      });
+    const unsubscribeFavorites = onSnapshot(favQuery, (snapshot) => {
+      setFavorites(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      favsLoaded = true;
+      checkInitialLoadComplete();
+    }, (error) => {
+      console.error("Firestore Favorites Error:", error);
+      favsLoaded = true;
+      checkInitialLoadComplete();
+    });
 
-      return () => {
-        unsubscribeChat();
-        unsubscribeFavorites();
-      };
-    } else {
-      const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-      localHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      setChatHistory(localHistory);
-      setFavorites([]);
-      setIsAppLoading(false);
+    return () => {
+      unsubscribeChat();
+      unsubscribeFavorites();
+    };
+  } else {
+    const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    localHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    setChatHistory(localHistory);
+    setFavorites([]);
+    setIsAppLoading(false);
+  }
+}, [user, authReady]);
+
+const signInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  authTimeoutRef.current = setTimeout(() => {
+    console.warn("Google login timeout — fallback");
+  }, 10000);
+
+  try {
+    await signInWithPopup(auth, provider);
+    setIsMenuOpen(false);
+  } catch (error) {
+    console.error("Google Sign-in Error:", error);
+    if (
+      error.code !== 'auth/cancelled-popup-request' &&
+      error.code !== 'auth/popup-closed-by-user'
+    ) {
+      alert("Google login failed. Check console.");
     }
-  }, [user, authReady]);
+  }
+};
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    authTimeoutRef.current = setTimeout(() => {
-      console.warn("Google login timeout — fallback");
-    }, 10000);
-
-    try {
-      await signInWithPopup(auth, provider);
-      setIsMenuOpen(false);
-    } catch (error) {
-      console.error("Google Sign-in Error:", error);
-      if (
-        error.code !== 'auth/cancelled-popup-request' &&
-        error.code !== 'auth/popup-closed-by-user'
-      ) {
-        alert("Google login failed. Check console.");
-      }
-    }
-  };
-
-  const signInWithFacebook = async () => {
+const signInWithFacebook = async () => {
   const provider = new FacebookAuthProvider();
 
   // Force use of popup on all platforms (even on mobile)
@@ -177,73 +190,73 @@ export const AppProvider = ({ children }) => {
 };
 
 
-  const logOut = async () => {
-    try {
-      await signOut(auth);
-      setTimeout(() => {
-        window.location.reload(); // refresh UI and reset state
-      }, 100); // slight delay for cleanup
-    } catch (error) {
-      console.error("Sign-out Error:", error);
-    }
-  };
+const logOut = async () => {
+  try {
+    await signOut(auth);
+    setTimeout(() => {
+      window.location.reload(); // refresh UI and reset state
+    }, 100); // slight delay for cleanup
+  } catch (error) {
+    console.error("Sign-out Error:", error);
+  }
+};
 
 
-  const addMessageToHistory = async (message) => {
-    if (user) {
-      await addDoc(collection(db, `users/${user.uid}/chatHistory`), message);
-    } else {
-      const localMessage = { ...message, timestamp: new Date().toISOString() };
-      const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-      const newHistory = [...localHistory, localMessage];
-      setChatHistory(newHistory);
-      localStorage.setItem('chatHistory', JSON.stringify(newHistory));
-    }
-  };
+const addMessageToHistory = async (message) => {
+  if (user) {
+    await addDoc(collection(db, `users/${user.uid}/chatHistory`), message);
+  } else {
+    const localMessage = { ...message, timestamp: new Date().toISOString() };
+    const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    const newHistory = [...localHistory, localMessage];
+    setChatHistory(newHistory);
+    localStorage.setItem('chatHistory', JSON.stringify(newHistory));
+  }
+};
 
-  const deleteChatHistory = async () => {
-    if (user) {
-      const snapshot = await getDocs(collection(db, `users/${user.uid}/chatHistory`));
-      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-    } else {
-      localStorage.removeItem('chatHistory');
-      setChatHistory([]);
-    }
-    setIsMenuOpen(false);
-  };
+const deleteChatHistory = async () => {
+  if (user) {
+    const snapshot = await getDocs(collection(db, `users/${user.uid}/chatHistory`));
+    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+  } else {
+    localStorage.removeItem('chatHistory');
+    setChatHistory([]);
+  }
+  setIsMenuOpen(false);
+};
 
-  const toggleFavorite = async (message) => {
-    if (!user || !message.id) return;
-    const favoriteRef = doc(db, `users/${user.uid}/favorites`, message.id);
-    const isFavorited = favorites.some(fav => fav.id === message.id);
-    if (isFavorited) {
-      await deleteDoc(favoriteRef);
-    } else {
-      await setDoc(favoriteRef, { ...message, timestamp: serverTimestamp() });
-    }
-  };
+const toggleFavorite = async (message) => {
+  if (!user || !message.id) return;
+  const favoriteRef = doc(db, `users/${user.uid}/favorites`, message.id);
+  const isFavorited = favorites.some(fav => fav.id === message.id);
+  if (isFavorited) {
+    await deleteDoc(favoriteRef);
+  } else {
+    await setDoc(favoriteRef, { ...message, timestamp: serverTimestamp() });
+  }
+};
 
-  const deleteFavorites = async () => {
-    if (user) {
-      const snapshot = await getDocs(collection(db, `users/${user.uid}/favorites`));
-      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-    }
-  };
+const deleteFavorites = async () => {
+  if (user) {
+    const snapshot = await getDocs(collection(db, `users/${user.uid}/favorites`));
+    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+  }
+};
 
-  const value = {
-    user, authReady, isAppLoading,
-    signInWithGoogle, signInWithFacebook, logOut,
-    chatHistory, setChatHistory, addMessageToHistory,
-    deleteChatHistory, favorites, toggleFavorite,
-    deleteFavorites, isLoading, setIsLoading,
-    page, setPage, isMenuOpen, setIsMenuOpen,
-  };
+const value = {
+  user, authReady, isAppLoading,
+  signInWithGoogle, signInWithFacebook, logOut,
+  chatHistory, setChatHistory, addMessageToHistory,
+  deleteChatHistory, favorites, toggleFavorite,
+  deleteFavorites, isLoading, setIsLoading,
+  page, setPage, isMenuOpen, setIsMenuOpen,
+};
 
-  return (
-    <AppContext.Provider value={value}>
-      {children}
-    </AppContext.Provider>
-  );
+return (
+  <AppContext.Provider value={value}>
+    {children}
+  </AppContext.Provider>
+);
 };
