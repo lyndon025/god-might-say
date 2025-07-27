@@ -1,8 +1,16 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AppProvider, AppContext } from '@/context/AppContext';
 import Header from '@/components/Header';
 import SidebarMenu from '@/components/SidebarMenu';
-import MainContent from '@/components/MainContent';
+
+// Page Components
+import ChatScreen from '@/components/ChatScreen';
+import FavoritesPage from '@/components/FavoritesPage';
+import DonatePage from '@/components/DonatePage';
+import AboutPage from '@/components/AboutPage';
+import MessageOfTheDayPage from '@/components/MessageOfTheDayPage';
+
 
 const AppLayout = () => {
   const { isMenuOpen, setIsMenuOpen } = useContext(AppContext);
@@ -10,10 +18,8 @@ const AppLayout = () => {
 
   useEffect(() => {
     const updateHeight = () => {
-      const height = window.innerHeight;
-      setVhHeight(`${height}px`);
+      setVhHeight(`${window.innerHeight}px`);
     };
-
     updateHeight();
     window.addEventListener('resize', updateHeight);
     return () => window.removeEventListener('resize', updateHeight);
@@ -23,7 +29,18 @@ const AppLayout = () => {
     <div className="w-full flex flex-col antialiased" style={{ height: vhHeight }}>
       <Header />
       <SidebarMenu />
-      <MainContent />
+
+      {/* ROUTED CONTENT */}
+      <main className="flex-1 overflow-y-auto">
+        <Routes>
+          <Route path="/" element={<ChatScreen />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/donate" element={<DonatePage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/message" element={<MessageOfTheDayPage />} />
+        </Routes>
+      </main>
+
       {isMenuOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-30"
@@ -36,7 +53,6 @@ const AppLayout = () => {
 
 const AppGate = () => {
   const { isAppLoading } = useContext(AppContext);
-
   if (isAppLoading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-background">
@@ -44,14 +60,15 @@ const AppGate = () => {
       </div>
     );
   }
-
   return <AppLayout />;
 };
 
 function App() {
   return (
     <AppProvider>
-      <AppGate />
+      <Router>
+        <AppGate />
+      </Router>
     </AppProvider>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { AppContext } from '../context/AppContext';
 import { LogIn, Star, Trash2, X, Info, Heart, Home } from 'lucide-react';
 
@@ -9,15 +10,14 @@ const SidebarMenu = () => {
     signInWithGoogle,
     signInWithFacebook,
     logOut,
-    setPage,
     setIsMenuOpen,
     deleteChatHistory,
   } = useContext(AppContext);
 
-  const handleNavigation = (pageName) => {
-    setPage(pageName);
-    setIsMenuOpen(false);
-  };
+  const location = useLocation();
+
+  // Close sidebar after clicking a nav link
+  const handleNavClick = () => setIsMenuOpen(false);
 
   return (
     <div className={`fixed top-0 right-0 h-full bg-surface border-l-2 border-accent/20 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} w-72`}>
@@ -25,13 +25,14 @@ const SidebarMenu = () => {
 
         {/* ✅ Top Row: Home + X */}
         <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => handleNavigation('home')}
+          <Link
+            to="/"
+            onClick={handleNavClick}
             className="flex items-center text-primary-text hover:bg-accent/10 transition-colors rounded-lg px-3 py-2 text-lg"
           >
             <Home className="mr-2 text-accent" size={20} />
             Home
-          </button>
+          </Link>
 
           <button
             onClick={() => setIsMenuOpen(false)}
@@ -41,7 +42,7 @@ const SidebarMenu = () => {
           </button>
         </div>
 
-        {/* ✅ Logged In: show avatar + name */}
+        {/* ✅ Logged In */}
         {user ? (
           <>
             <div className="flex items-center mb-6 p-2">
@@ -53,22 +54,23 @@ const SidebarMenu = () => {
               <span className="font-medium text-primary-text text-lg">{user.displayName}</span>
             </div>
 
-            {/* Message of the Day comes first */}
-            <button
-              onClick={() => handleNavigation('motd')}
+            <Link
+              to="/message"
+              onClick={handleNavClick}
               className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-2"
             >
               <Info className="mr-4 text-accent" size={20} />
               Message of the Day
-            </button>
+            </Link>
 
-            <button
-              onClick={() => handleNavigation('favorites')}
+            <Link
+              to="/favorites"
+              onClick={handleNavClick}
               className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-4"
             >
               <Star className="mr-4 text-accent" size={20} />
               Favorites
-            </button>
+            </Link>
 
             <button
               onClick={logOut}
@@ -80,7 +82,6 @@ const SidebarMenu = () => {
           </>
         ) : (
           <>
-            {/* Logged out: login buttons */}
             <button
               onClick={signInWithGoogle}
               className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-2"
@@ -97,22 +98,23 @@ const SidebarMenu = () => {
               Login with Facebook
             </button>
 
-            {/* Message of the Day before Favorites */}
-            <button
-              onClick={() => handleNavigation('motd')}
+            <Link
+              to="/message"
+              onClick={handleNavClick}
               className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-2"
             >
               <Info className="mr-4 text-accent" size={20} />
               Message of the Day
-            </button>
+            </Link>
 
-            <button
-              onClick={() => handleNavigation('favorites')}
+            <Link
+              to="/favorites"
+              onClick={handleNavClick}
               className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors"
             >
               <Star className="mr-4 text-accent" size={20} />
               Favorites
-            </button>
+            </Link>
           </>
         )}
 
@@ -120,23 +122,25 @@ const SidebarMenu = () => {
         <div className="mt-4 border-t border-accent/10"></div>
 
         {/* Donate & About */}
-        <button
-          onClick={() => handleNavigation('donate')}
+        <Link
+          to="/donate"
+          onClick={handleNavClick}
           className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mt-4"
         >
           <Heart className="mr-4 text-accent" size={20} />
           Donate
-        </button>
+        </Link>
 
-        <button
-          onClick={() => handleNavigation('about')}
+        <Link
+          to="/about"
+          onClick={handleNavClick}
           className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors"
         >
           <Info className="mr-4 text-accent" size={20} />
           About
-        </button>
+        </Link>
 
-        {/* Delete History */}
+        {/* Delete Chat History */}
         <div className="mt-auto">
           <button
             onClick={() => {
