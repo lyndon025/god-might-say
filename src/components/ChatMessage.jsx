@@ -57,6 +57,7 @@ const ChatMessage = ({ message }) => {
       const isFavorited = favorites.some(f => f.id?.startsWith(verseId));
 
       const handleToggle = () => {
+        if (!user) return;
         const verseMessage = {
           id: verseId,
           role: 'assistant',
@@ -70,16 +71,18 @@ const ChatMessage = ({ message }) => {
       elements.push(
         <div
           key={`verse-${i}`}
-          className="flex items-center gap-2 group cursor-pointer hover:bg-accent/10 px-3 py-2 rounded-md transition-colors"
+          onClick={user ? handleToggle : undefined}
+          className={`flex items-center gap-2 group px-3 py-2 rounded-md transition-colors ${
+            user ? 'cursor-pointer hover:bg-accent/10' : ''
+          }`}
         >
           <span
-            onClick={handleToggle}
-            className="text-accent font-semibold hover:underline flex-1"
-            title={isFavorited ? "Click to remove from favorites" : "Click to favorite this verse"}
+            className={`text-accent font-semibold ${user ? 'hover:underline flex-1' : 'flex-1'}`}
           >
             “{verseText}” — {reference}
           </span>
 
+          {/* Show star only if user is logged in */}
           {user && (
             <button
               onClick={handleToggle}
@@ -104,6 +107,7 @@ const ChatMessage = ({ message }) => {
 
   return elements;
 };
+
 
 
 
