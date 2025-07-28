@@ -9,13 +9,14 @@ export default async function SendToLLM({ userMessage, recentExchanges }) {
 
     if (isDev) {
       try {
-        // Use system-prompt.txt from project root in dev
-        const module = await import('/system-prompt.txt?raw');
+        // ✅ Safe dev-only dynamic import (avoids Vite build errors)
+        const module = await (new Function('return import("/system-prompt.txt?raw")'))();
         prompt = module.default;
+        console.info("✅ Loaded system prompt from system-prompt.txt");
       } catch {
-        // Fallback to .env if file missing
+        // 🔁 Fallback to .env if file missing or ignored
         prompt = import.meta.env.VITE_SYSTEM_PROMPT?.replace(/\\n/g, "\n") || prompt;
-        console.warn('📎 system-prompt.txt not found — using VITE_SYSTEM_PROMPT instead.');
+        console.warn("📎 system-prompt.txt not found — using VITE_SYSTEM_PROMPT instead.");
       }
 
       const body = {
@@ -36,7 +37,7 @@ export default async function SendToLLM({ userMessage, recentExchanges }) {
         body: JSON.stringify(body),
       });
     } else {
-      // In production, the prompt is handled by Cloudflare function
+      // 🚀 Production: prompt is handled inside Cloudflare backend
       response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
