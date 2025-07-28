@@ -129,13 +129,11 @@ const ChatScreen = () => {
 
 
 return (
-  <div ref={chatScreenRef} className="flex flex-col flex-grow overflow-hidden bg-background">
+  <div ref={chatScreenRef} className="flex flex-col h-full bg-background">
 
     {/* Chat Area (scrollable) */}
-    <div
-      className="overflow-y-auto p-4 md:p-6 space-y-6 min-h-0"
-      style={{ height: `${chatAreaHeight}%` }}
-    >
+  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+
 
       {chatHistory.map((msg, index) => (
         <ChatMessage key={msg.id || index} message={msg} />
@@ -144,11 +142,6 @@ return (
       <div ref={chatEndRef} />
     </div>
 
-    {/* Resizer Bar - Optional on Desktop */}
-    <div
-      className="w-full h-1.5 bg-surface hover:bg-accent cursor-row-resize transition-colors hidden sm:block"
-      onMouseDown={handleMouseDown}
-    />
 
     {/* Fixed Footer Input Section */}
     <div className="sticky bottom-0 left-0 right-0 bg-background px-3 pt-3 pb-6 border-t border-surface z-20">
