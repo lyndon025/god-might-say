@@ -6,14 +6,15 @@ const ChatMessage = ({ message }) => {
   const { toggleFavorite, favorites, user } = useContext(AppContext);
   const isUser = message.role === 'user';
 
+  // Ensure favorites is always treated as an array
+  const safeFavorites = Array.isArray(favorites) ? favorites : [];
+
   const isFavorited =
-    Array.isArray(favorites) && message.id
-      ? favorites.some(fav => fav.id === message.id)
-      : false;
+    message.id ? safeFavorites.some(fav => fav.id === message.id) : false;
 
   const preface = "God might say:";
   let content = message.content || '';
-  let prefaceContent = [null];
+  let prefaceContent = null;
 
   if (!isUser && content.startsWith(preface)) {
     prefaceContent = preface;
@@ -25,9 +26,11 @@ const ChatMessage = ({ message }) => {
 
   const handleVerseFavorite = (verseMessage) => {
     // Saves favorites both for logged-in users and guests
-    toggleFavorite(verseMessage);
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 2000);
+    if (toggleFavorite) {
+      toggleFavorite(verseMessage);
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 2000);
+    }
   };
 
   const parseContent = (text) => {
@@ -36,21 +39,27 @@ const ChatMessage = ({ message }) => {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      const refMatch = /^\*\s*([A-Za-z0-9\s]+:\d+(-\d+)?)/.exec(line);
       const nextLine = lines[i + 1]?.trim();
 
-      if (refMatch && nextLine?.startsWith('"')) {
-        const reference = refMatch[1];
+      // Enhanced regex to match Bible verses with OR without asterisk
+      // Matches: "* John 3:16" OR "John 3:16" (book name followed by chapter:verse)
+      const refMatch = /^(\*\s*)?([A-Za-z0-9\s]+\s+\d+:\d+(-\d+)?)/.exec(line);
+      
+      // Check if this looks like a Bible reference and next line starts with quotes
+      if (refMatch && nextLine && nextLine.startsWith('"') && nextLine.endsWith('"')) {
+        const reference = refMatch[2]; // Get the reference without the optional asterisk
         const verseText = nextLine.replace(/^"|"$/g, '');
-        const verseId = `verse-${reference}`;
+        const verseId = `verse-${reference.replace(/\s+/g, '-')}`;
 
-        const isVerseFavorited =
-          Array.isArray(favorites) && favorites.some(f => f.id?.startsWith(verseId));
+        // Always check favorites safely
+        const isVerseFavorited = safeFavorites.some(f => 
+          f.id && f.id.startsWith(verseId)
+        );
 
         const verseMessage = {
           id: verseId,
           role: 'assistant',
-          content: `“${verseText}” — ${reference}`,
+          content: `"${verseText}" — ${reference}`,
           timestamp: new Date().toISOString(),
           isVerse: true,
         };
@@ -68,7 +77,7 @@ const ChatMessage = ({ message }) => {
               className="text-accent font-semibold hover:underline flex-1"
               title={isVerseFavorited ? "Remove from favorites" : "Favorite this verse"}
             >
-              “{verseText}”<br />
+              "{verseText}"<br />
               <span className="text-secondary-text ml-1">— {reference}</span>
             </span>
 
@@ -87,12 +96,17 @@ const ChatMessage = ({ message }) => {
           </div>
         );
 
-        i += 1; // skip the next line
+        i += 1; // skip the next line since we processed it
         continue;
       }
 
-      // Regular line
-      elements.push(<span key={`line-${i}`}>{line}<br /></span>);
+      // Handle regular lines (non-verse content)
+      if (line) {
+        elements.push(<span key={`line-${i}`}>{line}<br /></span>);
+      } else {
+        // Empty line - add line break
+        elements.push(<br key={`br-${i}`} />);
+      }
     }
 
     return elements;
@@ -100,9 +114,11 @@ const ChatMessage = ({ message }) => {
 
   const handleMessageFavorite = () => {
     // Saves favorites both for logged-in users and guests
-    toggleFavorite(message);
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 2000);
+    if (toggleFavorite) {
+      toggleFavorite(message);
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 2000);
+    }
   };
 
   return (

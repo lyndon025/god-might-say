@@ -36,7 +36,7 @@ const firebaseConfig = {
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState([null]);
+  const [user, setUser] = useState(null); // ✅ Fixed: was [null], now just null
   const [authReady, setAuthReady] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [favorites, setFavorites] = useState([]);
