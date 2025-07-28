@@ -36,16 +36,15 @@ const MotdModal = ({ visible, onClose }) => {
   };
 
   const shareMessage = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'Message of the Day',
-        text: message,
-        url: 'https://godmightsay.com',
-      });
-    } else {
-      alert('Sharing is not supported on this device/browser.');
-    }
-  };
+  if (navigator.share) {
+    navigator.share({
+      title: 'Message of the Day',
+      text: `${message}\n\nRead more at https://godmightsay.com`,
+    });
+  } else {
+    alert('Sharing is not supported on this device/browser.');
+  }
+};
 
   if (!visible) return null;
 
