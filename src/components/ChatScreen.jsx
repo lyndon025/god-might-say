@@ -5,16 +5,15 @@ import ChatInput from './ChatInput';
 import LoadingIndicator from './LoadingIndicator';
 import { serverTimestamp } from 'firebase/firestore';
 import ERROR_RESPONSES from '../constants/errorMessages';
+import SendToLLM from '../utils/SendToLLM'; // ✅ default import now
 
 const ChatScreen = () => {
   const { chatHistory, isLoading, addMessageToHistory, setIsLoading } = useContext(AppContext);
   const chatEndRef = useRef(null);
-
-  const [chatAreaHeight, setChatAreaHeight] = useState(85);
   const chatScreenRef = useRef(null);
   const isResizing = useRef(false);
-
   const [input, setInput] = useState('');
+  const [chatAreaHeight, setChatAreaHeight] = useState(85);
 
   const handleMouseDown = (e) => { isResizing.current = true; e.preventDefault(); };
   const handleMouseUp = useCallback(() => { isResizing.current = false; }, []);
@@ -56,92 +55,41 @@ const ChatScreen = () => {
     setIsLoading(true);
 
     try {
-      const userAssistantOnly = chatHistory.filter(
-        m => m.role === 'user' || m.role === 'assistant'
-      );
+      const recentExchanges = chatHistory
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .slice(-8)
+        .map(m => ({ id: m.id, role: m.role, content: m.content }));
 
-      const recentExchanges = [];
-      for (let i = userAssistantOnly.length - 1; i >= 0 && recentExchanges.length < 8; i--) {
-        const msg = userAssistantOnly[i];
-        recentExchanges.unshift({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content
-        });
-      }
+      const result = await SendToLLM({
+        recentExchanges,
+        userMessage: userMessage.content
+      });
 
-      let response;
-      const isDev = import.meta.env.MODE === 'development';
+      if (!result.success) throw new Error(result.error);
 
-      if (isDev) {
-        // Local mode — use direct call
-        const prompt = import.meta.env.VITE_SYSTEM_PROMPT?.replace(/\\n/g, "\n") || "You are a helpful assistant.";
-
-        const body = {
-          model: "gpt-4",
-          messages: [
-            { role: "system", content: prompt },
-            ...recentExchanges,
-            { role: "user", content: userMessage.content }
-          ]
-        };
-
-        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(body)
-        });
-      } else {
-        // Production mode — use secure Cloudflare function
-        response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ recentExchanges, userMessage: userMessage.content })
-        });
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({
-          error: { message: 'An unknown error occurred.' }
-        }));
-        console.error("API Response Error:", errorData);
-        throw new Error("Temporary interruption");
-      }
-
-      const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content ?? "No response.";
-      const aiMessage = {
-        id: data.id,
+      addMessageToHistory({
+        id: result.id,
         role: 'assistant',
-        content: raw,
-        rawContent: raw,
+        content: result.content,
+        rawContent: result.content,
         timestamp: serverTimestamp()
-      };
+      });
 
-      addMessageToHistory(aiMessage);
     } catch (error) {
-      console.error("Error fetching from LLM:", error);
-      const randomError = ERROR_RESPONSES[Math.floor(Math.random() * ERROR_RESPONSES.length)];
-      const errorMessage = {
+      const fallback = ERROR_RESPONSES[Math.floor(Math.random() * ERROR_RESPONSES.length)];
+      addMessageToHistory({
         id: 'error-' + Date.now(),
         role: 'assistant',
-        content: randomError,
-        timestamp: serverTimestamp(),
-      };
-      addMessageToHistory(errorMessage);
+        content: fallback,
+        timestamp: serverTimestamp()
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div
-      ref={chatScreenRef}
-      className="flex flex-col h-full bg-background text-primary-text dark:bg-light-background dark:text-light-primary-text"
-    >
+    <div ref={chatScreenRef} className="flex flex-col h-full bg-background text-primary-text dark:bg-light-background dark:text-light-primary-text">
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         {chatHistory.map((msg, index) => (
           <ChatMessage key={msg.id || index} message={msg} />

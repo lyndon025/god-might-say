@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { AppContext } from '../context/AppContext';
 import { Star, CheckCircle } from 'lucide-react';
 
+
 const ChatMessage = ({ message }) => {
   const { toggleFavorite, favorites, user } = useContext(AppContext);
   const isUser = message.role === 'user';
