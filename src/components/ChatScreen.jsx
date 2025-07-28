@@ -129,12 +129,12 @@ const ChatScreen = () => {
 
 
 return (
-  <div ref={chatScreenRef} className="flex flex-col h-full bg-background">
-
+  <div
+    ref={chatScreenRef}
+    className="flex flex-col h-full bg-background text-primary-text dark:bg-light-background dark:text-light-primary-text"
+  >
     {/* Chat Area (scrollable) */}
-  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-
-
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
       {chatHistory.map((msg, index) => (
         <ChatMessage key={msg.id || index} message={msg} />
       ))}
@@ -142,12 +142,10 @@ return (
       <div ref={chatEndRef} />
     </div>
 
-
     {/* Fixed Footer Input Section */}
-    <div className="sticky bottom-0 left-0 right-0 bg-background px-3 pt-3 pb-6 border-t border-surface z-20">
+    <div className="sticky bottom-0 left-0 right-0 bg-surface dark:bg-light-surface px-3 pt-3 pb-6 border-t border-surface dark:border-light-surface z-20">
       <div className="relative w-full">
         <ChatInput input={input} setInput={setInput} onSend={handleSend} />
-
         <button
           onClick={handleSend}
           className="absolute right-3 bottom-3 bg-accent text-background font-bold rounded-lg px-5 py-2 hover:bg-accent-hover disabled:bg-surface disabled:text-secondary-text transition-all shadow-lg transform hover:scale-105"
@@ -157,9 +155,9 @@ return (
         </button>
       </div>
     </div>
-
   </div>
 );
+
 
 };
 

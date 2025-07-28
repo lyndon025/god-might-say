@@ -3,5 +3,15 @@
 @tailwind utilities;
 
 body {
-  @apply bg-background text-primary-text font-sans;
+  @apply font-sans;
+}
+
+/* DARK theme styles */
+html.dark body {
+  @apply bg-background text-primary-text;
+}
+
+/* LIGHT theme styles */
+html:not(.dark) body {
+  @apply bg-light-background text-light-primary-text;
 }
