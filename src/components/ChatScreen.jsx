@@ -6,8 +6,6 @@ import LoadingIndicator from './LoadingIndicator';
 import { serverTimestamp } from 'firebase/firestore';
 import ERROR_RESPONSES from '../constants/errorMessages';
 
-import SYSTEM_PROMPT from '../constants/systemPrompt';
-
 const ChatScreen = () => {
   const { chatHistory, isLoading, addMessageToHistory, setIsLoading } = useContext(AppContext);
   const chatEndRef = useRef(null);
@@ -17,7 +15,6 @@ const ChatScreen = () => {
   const isResizing = useRef(false);
 
   const [input, setInput] = useState('');
-  const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
   const handleMouseDown = (e) => { isResizing.current = true; e.preventDefault(); };
   const handleMouseUp = useCallback(() => { isResizing.current = false; }, []);
@@ -40,10 +37,12 @@ const ChatScreen = () => {
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory, isLoading]);
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, isLoading]);
 
   const handleSend = async () => {
-    if (input.trim() === '' || !OPENROUTER_API_KEY) return;
+    if (input.trim() === '') return;
 
     const userMessage = {
       id: 'local-' + Date.now().toString(),
@@ -57,40 +56,52 @@ const ChatScreen = () => {
     setIsLoading(true);
 
     try {
-      // 🧠 Step 1: Filter only user-assistant messages
       const userAssistantOnly = chatHistory.filter(
         m => m.role === 'user' || m.role === 'assistant'
       );
 
-      // 🧠 Step 2: Get last 4 exchanges (user+assistant is a pair = 2 messages)
       const recentExchanges = [];
-
       for (let i = userAssistantOnly.length - 1; i >= 0 && recentExchanges.length < 8; i--) {
         const msg = userAssistantOnly[i];
         recentExchanges.unshift({
-          id: msg.id, // 👈 preserve it!
+          id: msg.id,
           role: msg.role,
           content: msg.content
         });
       }
 
-      const requestBody = {
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...recentExchanges,
-          { role: "user", content: userMessage.content }
-        ]
-      };
+      let response;
+      const isDev = import.meta.env.MODE === 'development';
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
-      });
+      if (isDev) {
+        // Local mode — use direct call
+        const prompt = import.meta.env.VITE_SYSTEM_PROMPT?.replace(/\\n/g, "\n") || "You are a helpful assistant.";
+
+        const body = {
+          model: "gpt-4",
+          messages: [
+            { role: "system", content: prompt },
+            ...recentExchanges,
+            { role: "user", content: userMessage.content }
+          ]
+        };
+
+        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+      } else {
+        // Production mode — use secure Cloudflare function
+        response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recentExchanges, userMessage: userMessage.content })
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({
@@ -101,7 +112,7 @@ const ChatScreen = () => {
       }
 
       const data = await response.json();
-      const raw = data.choices[0].message.content;
+      const raw = data.choices?.[0]?.message?.content ?? "No response.";
       const aiMessage = {
         id: data.id,
         role: 'assistant',
@@ -112,8 +123,7 @@ const ChatScreen = () => {
 
       addMessageToHistory(aiMessage);
     } catch (error) {
-      console.error("Error fetching from OpenRouter:", error);
-
+      console.error("Error fetching from LLM:", error);
       const randomError = ERROR_RESPONSES[Math.floor(Math.random() * ERROR_RESPONSES.length)];
       const errorMessage = {
         id: 'error-' + Date.now(),
@@ -121,7 +131,6 @@ const ChatScreen = () => {
         content: randomError,
         timestamp: serverTimestamp(),
       };
-
       addMessageToHistory(errorMessage);
     } finally {
       setIsLoading(false);
@@ -133,7 +142,6 @@ const ChatScreen = () => {
       ref={chatScreenRef}
       className="flex flex-col h-full bg-background text-primary-text dark:bg-light-background dark:text-light-primary-text"
     >
-      {/* Chat Area (scrollable) */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         {chatHistory.map((msg, index) => (
           <ChatMessage key={msg.id || index} message={msg} />
@@ -142,7 +150,6 @@ const ChatScreen = () => {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Fixed Footer Input Section */}
       <div className="sticky bottom-0 left-0 right-0 bg-surface dark:bg-light-surface px-3 pt-3 pb-6 border-t border-surface dark:border-light-surface z-20">
         <div className="relative w-full">
           <ChatInput input={input} setInput={setInput} onSend={handleSend} />
