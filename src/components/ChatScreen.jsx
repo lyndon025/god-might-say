@@ -75,7 +75,7 @@ const ChatScreen = () => {
     }
 
     const requestBody = {
-      model: "google/gemini-flash-1.5",
+      model: "google/gemini-2.5-flash-lite",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         ...recentExchanges,
