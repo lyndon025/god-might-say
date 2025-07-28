@@ -58,108 +58,84 @@ const ChatMessage = ({ message }) => {
     </div>
   );
 
-  const parseContent = (text) => {
-    const elements = [];
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+ const parseContent = (text) => {
+  const elements = [];
+  const lines = text.split('\n');
 
-    const cleanLine = (line) =>
-      line.replace(/[*_`~]+/g, '')      // remove markdown
-          .replace(/[“”]/g, '"')        // normalize quotes
-          .replace(/^—\s*/, '')         // remove starting dash
-          .trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const nextLine = lines[i + 1]?.trim();
 
-    const refRegex = /\b([A-Za-z]+\s?\d{0,3})\s+(\d+:\d+([–-]\d+)?)/;
-    const quoteRegex = /"([^"]{6,500})"/;
+    // Match line that strictly starts with "* Book Chapter:Verse"
+    const refMatch = /^\*\s*([1-3]?\s?[A-Za-z]+(?:\s+[A-Za-z]+)*\s+\d+:\d+(-\d+)?)/.exec(line);
 
-    let i = 0;
-    while (i < lines.length) {
-      const current = cleanLine(lines[i]);
-      const next = cleanLine(lines[i + 1] || '');
-      const combined = `${current} ${next}`;
+    // Next line must be a quote enclosed in “”
+    const validQuote = nextLine && /^[“"].+[”"]?$/.test(nextLine);
 
-      // Case 1: Same line has both quote and reference
-      if (quoteRegex.test(current) && refRegex.test(current)) {
-        const verseText = quoteRegex.exec(current)[1];
-        const refMatch = refRegex.exec(current);
-        const reference = `${refMatch[1]} ${refMatch[2]}`;
-        const verseId = `verse-${reference.replace(/\s+/g, '-')}`;
-        const isVerseFavorited = safeFavorites.some(f => f.id?.startsWith(verseId));
-        const verseMessage = {
-          id: verseId,
-          role: 'assistant',
-          content: `"${verseText}" — ${reference}`,
-          timestamp: new Date().toISOString(),
-          isVerse: true,
-        };
-        elements.push(renderVerse(verseText, reference, isVerseFavorited, () => handleVerseFavorite(verseMessage), i));
-        i += 1;
-        continue;
-      }
+    if (refMatch && validQuote) {
+      const reference = refMatch[1].trim();
+      const verseText = nextLine.replace(/^["“]|["”]$/g, '').trim(); // Remove quote chars
+      const verseId = `verse-${reference.replace(/\s+/g, '-')}`;
 
-      // Case 2: Quote line then Reference line
-      if (quoteRegex.test(current) && refRegex.test(next)) {
-        const verseText = quoteRegex.exec(current)[1];
-        const refMatch = refRegex.exec(next);
-        const reference = `${refMatch[1]} ${refMatch[2]}`;
-        const verseId = `verse-${reference.replace(/\s+/g, '-')}`;
-        const isVerseFavorited = safeFavorites.some(f => f.id?.startsWith(verseId));
-        const verseMessage = {
-          id: verseId,
-          role: 'assistant',
-          content: `"${verseText}" — ${reference}`,
-          timestamp: new Date().toISOString(),
-          isVerse: true,
-        };
-        elements.push(renderVerse(verseText, reference, isVerseFavorited, () => handleVerseFavorite(verseMessage), i));
-        i += 2;
-        continue;
-      }
+      const isVerseFavorited = safeFavorites.some(f =>
+        f.id && f.id.startsWith(verseId)
+      );
 
-      // Case 3: Reference line then Quote line
-      if (refRegex.test(current) && quoteRegex.test(next)) {
-        const verseText = quoteRegex.exec(next)[1];
-        const refMatch = refRegex.exec(current);
-        const reference = `${refMatch[1]} ${refMatch[2]}`;
-        const verseId = `verse-${reference.replace(/\s+/g, '-')}`;
-        const isVerseFavorited = safeFavorites.some(f => f.id?.startsWith(verseId));
-        const verseMessage = {
-          id: verseId,
-          role: 'assistant',
-          content: `"${verseText}" — ${reference}`,
-          timestamp: new Date().toISOString(),
-          isVerse: true,
-        };
-        elements.push(renderVerse(verseText, reference, isVerseFavorited, () => handleVerseFavorite(verseMessage), i));
-        i += 2;
-        continue;
-      }
+      const verseMessage = {
+        id: verseId,
+        role: 'assistant',
+        content: `"${verseText}" — ${reference}`,
+        timestamp: new Date().toISOString(),
+        isVerse: true,
+      };
 
-      // Case 4: Reference line followed by unquoted verse (your new case)
-      if (refRegex.test(current) && next.length > 10) {
-        const verseText = next.replace(/["“”]/g, '').trim();
-        const refMatch = refRegex.exec(current);
-        const reference = `${refMatch[1]} ${refMatch[2]}`;
-        const verseId = `verse-${reference.replace(/\s+/g, '-')}`;
-        const isVerseFavorited = safeFavorites.some(f => f.id?.startsWith(verseId));
-        const verseMessage = {
-          id: verseId,
-          role: 'assistant',
-          content: `"${verseText}" — ${reference}`,
-          timestamp: new Date().toISOString(),
-          isVerse: true,
-        };
-        elements.push(renderVerse(verseText, reference, isVerseFavorited, () => handleVerseFavorite(verseMessage), i));
-        i += 2;
-        continue;
-      }
+      const handleToggle = () => handleVerseFavorite(verseMessage);
 
-      // Fallback
-      elements.push(<span key={`line-${i}`}>{current}<br /></span>);
-      i += 1;
+      elements.push(
+        <div
+          key={`verse-${i}`}
+          className="flex items-center gap-2 group cursor-pointer hover:bg-accent/10 px-3 py-2 rounded-md transition-colors"
+        >
+          <span
+            onClick={handleToggle}
+            className="text-accent font-semibold hover:underline flex-1"
+            title={isVerseFavorited ? "Remove from favorites" : "Favorite this verse"}
+          >
+            "{verseText}"<br />
+            <span className="text-secondary-text ml-1">— {reference}</span>
+          </span>
+
+          <button
+            onClick={handleToggle}
+            className={`transition-all p-1 rounded-full ${
+              isVerseFavorited
+                ? 'text-accent'
+                : 'text-secondary-text group-hover:text-accent hover:bg-surface'
+            }`}
+            aria-label="Toggle Verse Favorite"
+          >
+            <Star size={16} fill={isVerseFavorited ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+      );
+
+      i++; // Skip quote line
+      continue;
     }
 
-    return elements;
-  };
+    // Handle non-verse content normally
+    if (line) {
+      elements.push(<span key={`line-${i}`}>{line}<br /></span>);
+    } else {
+      elements.push(<br key={`br-${i}`} />);
+    }
+  }
+
+  return elements;
+};
+
+
+
 
   const handleMessageFavorite = () => {
     if (toggleFavorite) {
