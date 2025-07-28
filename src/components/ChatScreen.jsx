@@ -68,6 +68,7 @@ const ChatScreen = () => {
       for (let i = userAssistantOnly.length - 1; i >= 0 && recentExchanges.length < 8; i--) {
         const msg = userAssistantOnly[i];
         recentExchanges.unshift({
+          id: msg.id, // 👈 preserve it!
           role: msg.role,
           content: msg.content
         });
