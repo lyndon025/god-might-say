@@ -1,6 +1,6 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { AppContext } from '../context/AppContext';
-import { Star } from 'lucide-react';
+import { Star, CheckCircle } from 'lucide-react';
 
 const ChatMessage = ({ message }) => {
   const { toggleFavorite, favorites, user } = useContext(AppContext);
@@ -17,12 +17,102 @@ const ChatMessage = ({ message }) => {
   }
 
   const isError = message.id?.startsWith('error-');
+  const [showSaved, setShowSaved] = useState(false);
+
+  const handleVerseFavorite = async (verseText, reference) => {
+    if (!user) return alert("Please log in to favorite this verse.");
+    const id = `verse-${reference}-${Date.now()}`;
+    const verseMessage = {
+      id,
+      role: 'assistant',
+      content: `“${verseText}” — ${reference}`,
+      timestamp: new Date().toISOString(),
+      isVerse: true,
+    };
+    try {
+      await toggleFavorite(verseMessage);
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 2000);
+    } catch (err) {
+      console.error("Error saving verse:", err);
+    }
+  };
+
+ const parseContent = (text) => {
+  const elements = [];
+  const lines = text.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Match: * Book Chapter:Verse
+    const refMatch = /^\*\s*([A-Za-z0-9\s]+:\d+(-\d+)?)/.exec(line);
+    const nextLine = lines[i + 1]?.trim();
+
+    if (refMatch && nextLine?.startsWith('"')) {
+      const reference = refMatch[1];
+      const verseText = nextLine.replace(/^"|"$/g, '');
+      const verseId = `verse-${reference}`;
+
+      const isFavorited = favorites.some(f => f.id?.startsWith(verseId));
+
+      const handleToggle = () => {
+        const verseMessage = {
+          id: verseId,
+          role: 'assistant',
+          content: `“${verseText}” — ${reference}`,
+          timestamp: new Date().toISOString(),
+          isVerse: true,
+        };
+        toggleFavorite(verseMessage);
+      };
+
+      elements.push(
+        <div
+          key={`verse-${i}`}
+          className="flex items-center gap-2 group cursor-pointer hover:bg-accent/10 px-3 py-2 rounded-md transition-colors"
+        >
+          <span
+            onClick={handleToggle}
+            className="text-accent font-semibold hover:underline flex-1"
+            title={isFavorited ? "Click to remove from favorites" : "Click to favorite this verse"}
+          >
+            “{verseText}” — {reference}
+          </span>
+
+          {user && (
+            <button
+              onClick={handleToggle}
+              className={`transition-all p-1 rounded-full ${
+                isFavorited
+                  ? 'text-accent'
+                  : 'text-secondary-text group-hover:text-accent hover:bg-surface'
+              }`}
+              aria-label="Toggle Favorite"
+            >
+              <Star size={16} fill={isFavorited ? 'currentColor' : 'none'} />
+            </button>
+          )}
+        </div>
+      );
+
+      i++; // skip next line
+    } else {
+      elements.push(<span key={`line-${i}`}>{line}<br /></span>);
+    }
+  }
+
+  return elements;
+};
+
+
+
 
   return (
     <div className={`flex items-end gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={
-          `group relative max-w-2xl w-fit rounded-2xl px-5 py-3 shadow-md transition-colors
+        className={`
+          group relative max-w-2xl w-fit rounded-2xl px-5 py-3 shadow-md transition-colors
           ${isUser
             ? 'bg-messenger-blue text-white'
             : isError
@@ -35,8 +125,18 @@ const ChatMessage = ({ message }) => {
           <p className="font-serif font-bold text-accent mb-2">{prefaceContent}</p>
         )}
 
-        <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
+        <p className="whitespace-pre-wrap leading-relaxed">
+          {parseContent(content)}
+        </p>
 
+        {/* ✅ Saved Verse Feedback */}
+        {showSaved && (
+          <div className="absolute -top-4 right-1 text-green-500 text-sm flex items-center gap-1 animate-fade-in-out">
+            <CheckCircle size={16} /> Saved!
+          </div>
+        )}
+
+        {/* ⭐ Star button for full message */}
         {!isUser && user && message.id && !isError && (
           <button
             onClick={() => toggleFavorite(message)}
@@ -45,7 +145,7 @@ const ChatMessage = ({ message }) => {
                 ? 'bg-accent text-background'
                 : 'bg-background text-accent dark:bg-light-surface dark:text-accent hover:bg-surface'}
             `}
-            aria-label="Favorite"
+            aria-label="Favorite Full Message"
           >
             <Star size={18} fill={isFavorited ? 'currentColor' : 'none'} />
           </button>

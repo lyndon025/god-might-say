@@ -15,3 +15,15 @@ html.dark body {
 html:not(.dark) body {
   @apply bg-light-background text-light-primary-text;
 }
+
+
+@keyframes fade-in-out {
+  0% { opacity: 0; transform: translateY(-5px); }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-5px); }
+}
+
+.animate-fade-in-out {
+  animation: fade-in-out 2s ease-in-out forwards;
+}
