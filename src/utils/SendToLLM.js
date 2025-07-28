@@ -1,16 +1,25 @@
 // src/utils/SendToLLM.js
+
 export default async function SendToLLM({ userMessage, recentExchanges }) {
   const isDev = import.meta.env.MODE === 'development';
 
   try {
     let response;
+    let prompt = "You are a helpful assistant.";
 
     if (isDev) {
-      const prompt = import.meta.env.VITE_SYSTEM_PROMPT?.replace(/\\n/g, "\n") ||
-        "You are a helpful assistant.";
+      try {
+        // Use system-prompt.txt from project root in dev
+        const module = await import('/system-prompt.txt?raw');
+        prompt = module.default;
+      } catch {
+        // Fallback to .env if file missing
+        prompt = import.meta.env.VITE_SYSTEM_PROMPT?.replace(/\\n/g, "\n") || prompt;
+        console.warn('📎 system-prompt.txt not found — using VITE_SYSTEM_PROMPT instead.');
+      }
 
       const body = {
-        model: "gpt-4",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: prompt },
           ...recentExchanges,
@@ -27,6 +36,7 @@ export default async function SendToLLM({ userMessage, recentExchanges }) {
         body: JSON.stringify(body),
       });
     } else {
+      // In production, the prompt is handled by Cloudflare function
       response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

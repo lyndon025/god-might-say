@@ -9,3 +9,6 @@
 
 # Log files
 *.log
+
+# system prompt for dev purposes
+/system-prompt.txt
