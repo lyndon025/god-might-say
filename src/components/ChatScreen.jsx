@@ -5,7 +5,7 @@ import ChatInput from './ChatInput';
 import LoadingIndicator from './LoadingIndicator';
 import { serverTimestamp } from 'firebase/firestore';
 import ERROR_RESPONSES from '../constants/errorMessages';
-import SendToLLM from '../utils/SendToLLM'; //
+import SendToLLM from '../utils/SendToLLM';
 
 const ChatScreen = () => {
   const { chatHistory, isLoading, addMessageToHistory, setIsLoading } = useContext(AppContext);
@@ -55,10 +55,28 @@ const ChatScreen = () => {
     setIsLoading(true);
 
     try {
+      const cleanOldAssistant = (content) => {
+        return content
+          .replace(/^\*\s?[A-Za-z0-9\s]+\d+:\d+(-\d+)?$/gm, '')
+          .replace(/^["“][^"”]+["”]$/gm, '')
+          .trim();
+      };
+
       const recentExchanges = chatHistory
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .slice(-8)
-        .map(m => ({ id: m.id, role: m.role, content: m.content }));
+        .map(m => ({
+          id: m.id,
+          role: m.role,
+          content: m.role === 'assistant' ? cleanOldAssistant(m.content) : m.content
+        }));
+
+      // Optional: force reminder to LLM to ignore old format
+      recentExchanges.unshift({
+        role: "user",
+        content:
+          "Reminder: Please ignore any previous assistant messages that may have incorrect formatting. Follow only the format in the system prompt. Thank you."
+      });
 
       const result = await SendToLLM({
         recentExchanges,
