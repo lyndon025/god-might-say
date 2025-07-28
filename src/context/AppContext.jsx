@@ -36,7 +36,7 @@ const firebaseConfig = {
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState([null]);
   const [authReady, setAuthReady] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [favorites, setFavorites] = useState([]);
@@ -44,6 +44,7 @@ export const AppProvider = ({ children }) => {
   const [page, setPage] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [showGuestFavoriteNotice, setShowGuestFavoriteNotice] = useState(false); // ✅ NEW
 
   const authTimeoutRef = useRef(null);
   const app = initializeApp(firebaseConfig);
@@ -51,17 +52,14 @@ export const AppProvider = ({ children }) => {
   const db = getFirestore(app);
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  // 🚨 Get redirect result immediately after load (important for Facebook login on mobile)
+  // 🚨 Handle Facebook redirect
   useEffect(() => {
     const loginStarted = localStorage.getItem("fb-login-started");
 
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
-          console.log("Facebook redirect result:", result.user);
           setUser(result.user);
-        } else {
-          console.log("Redirect result: null");
         }
       })
       .catch((error) => {
@@ -76,58 +74,58 @@ export const AppProvider = ({ children }) => {
   // ✅ Listen to auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        console.log("User is signed in:", currentUser);
-        setUser(currentUser);
-      }
+      setUser(currentUser || null);
+      setAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
 
-  // 🔁 Load Firestore content or fallback to local
+  // 🔁 Load content: Firestore or Local
   useEffect(() => {
     if (!authReady) return;
 
     if (user) {
       let chatLoaded = false;
       let favsLoaded = false;
-
-      const checkInitialLoadComplete = () => {
+      const checkLoaded = () => {
         if (chatLoaded && favsLoaded) setIsAppLoading(false);
       };
 
       const chatQuery = query(collection(db, `users/${user.uid}/chatHistory`), orderBy('timestamp', 'asc'));
       const favQuery = query(collection(db, `users/${user.uid}/favorites`), orderBy('timestamp', 'desc'));
 
-      const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
+      const unsubChat = onSnapshot(chatQuery, (snapshot) => {
         setChatHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         chatLoaded = true;
-        checkInitialLoadComplete();
-      }, (error) => {
-        console.error("Firestore Chat History Error:", error);
+        checkLoaded();
+      }, (err) => {
+        console.error("Chat error:", err);
         chatLoaded = true;
-        checkInitialLoadComplete();
+        checkLoaded();
       });
 
-      const unsubscribeFavorites = onSnapshot(favQuery, (snapshot) => {
+      const unsubFavs = onSnapshot(favQuery, (snapshot) => {
         setFavorites(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         favsLoaded = true;
-        checkInitialLoadComplete();
-      }, (error) => {
-        console.error("Firestore Favorites Error:", error);
+        checkLoaded();
+      }, (err) => {
+        console.error("Fav error:", err);
         favsLoaded = true;
-        checkInitialLoadComplete();
+        checkLoaded();
       });
 
       return () => {
-        unsubscribeChat();
-        unsubscribeFavorites();
+        unsubChat();
+        unsubFavs();
       };
     } else {
       const localHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
       localHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       setChatHistory(localHistory);
-      setFavorites([]);
+
+      const localFavs = JSON.parse(localStorage.getItem('favorites') || '[]');
+      setFavorites(localFavs);
+
       setIsAppLoading(false);
     }
   }, [user, authReady]);
@@ -182,9 +180,7 @@ export const AppProvider = ({ children }) => {
   const logOut = async () => {
     try {
       await signOut(auth);
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+      setTimeout(() => window.location.reload(), 100);
     } catch (error) {
       console.error("Sign-out Error:", error);
     }
@@ -215,13 +211,25 @@ export const AppProvider = ({ children }) => {
   };
 
   const toggleFavorite = async (message) => {
-    if (!user || !message.id) return;
-    const favoriteRef = doc(db, `users/${user.uid}/favorites`, message.id);
-    const isFavorited = favorites.some(fav => fav.id === message.id);
-    if (isFavorited) {
-      await deleteDoc(favoriteRef);
+    if (!message.id) return;
+
+    if (user) {
+      const favoriteRef = doc(db, `users/${user.uid}/favorites`, message.id);
+      const isFavorited = favorites.some(fav => fav.id === message.id);
+      if (isFavorited) {
+        await deleteDoc(favoriteRef);
+      } else {
+        await setDoc(favoriteRef, { ...message, timestamp: serverTimestamp() });
+      }
     } else {
-      await setDoc(favoriteRef, { ...message, timestamp: serverTimestamp() });
+      const localFavs = JSON.parse(localStorage.getItem('favorites') || '[]');
+      const exists = localFavs.some(fav => fav.id === message.id);
+      const updated = exists
+        ? localFavs.filter(fav => fav.id !== message.id)
+        : [...localFavs, { ...message, timestamp: new Date().toISOString() }];
+      localStorage.setItem('favorites', JSON.stringify(updated));
+      setFavorites(updated);
+      setShowGuestFavoriteNotice(true); // ✅ trigger warning
     }
   };
 
@@ -230,6 +238,9 @@ export const AppProvider = ({ children }) => {
       const snapshot = await getDocs(collection(db, `users/${user.uid}/favorites`));
       const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
+    } else {
+      localStorage.removeItem('favorites');
+      setFavorites([]);
     }
   };
 
@@ -240,6 +251,7 @@ export const AppProvider = ({ children }) => {
     deleteChatHistory, favorites, toggleFavorite,
     deleteFavorites, isLoading, setIsLoading,
     page, setPage, isMenuOpen, setIsMenuOpen,
+    showGuestFavoriteNotice, setShowGuestFavoriteNotice // ✅ make available
   };
 
   return (
