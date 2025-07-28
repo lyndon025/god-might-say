@@ -35,6 +35,18 @@ const MotdModal = ({ visible, onClose }) => {
     });
   };
 
+  const shareMessage = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Message of the Day',
+        text: message,
+        url: 'https://godmightsay.com',
+      });
+    } else {
+      alert('Sharing is not supported on this device/browser.');
+    }
+  };
+
   if (!visible) return null;
 
   return (
@@ -56,6 +68,12 @@ const MotdModal = ({ visible, onClose }) => {
             className="px-4 py-2 bg-accent text-background rounded-md hover:bg-accent-hover transition"
           >
             Save Image
+          </button>
+          <button
+            onClick={shareMessage}
+            className="px-4 py-2 bg-accent text-background rounded-md hover:bg-accent-hover transition"
+          >
+            Share
           </button>
           <button
             onClick={onClose}
