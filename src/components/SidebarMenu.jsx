@@ -54,14 +54,17 @@ const SidebarMenu = () => {
               <span className="font-medium text-primary-text text-lg">{user.displayName}</span>
             </div>
 
-            <Link
-              to="/message"
-              onClick={handleNavClick}
-              className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-2"
-            >
-              <Info className="mr-4 text-accent" size={20} />
-              Message of the Day
-            </Link>
+<button
+  onClick={() => {
+    setIsMenuOpen(false);
+    window.dispatchEvent(new Event('toggle-motd'));
+  }}
+  className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-2"
+>
+  <Info className="mr-4 text-accent" size={20} />
+  Message of the Day
+</button>
+
 
             <Link
               to="/favorites"
@@ -98,14 +101,17 @@ const SidebarMenu = () => {
               Login with Facebook
             </button>
 
-            <Link
-              to="/message"
-              onClick={handleNavClick}
-              className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-2"
-            >
-              <Info className="mr-4 text-accent" size={20} />
-              Message of the Day
-            </Link>
+<button
+  onClick={() => {
+    setIsMenuOpen(false);
+    window.dispatchEvent(new Event('toggle-motd'));
+  }}
+  className="flex items-center w-full text-left p-3 text-lg rounded-lg text-primary-text hover:bg-accent/10 transition-colors mb-2"
+>
+  <Info className="mr-4 text-accent" size={20} />
+  Message of the Day
+</button>
+
 
             <Link
               to="/favorites"

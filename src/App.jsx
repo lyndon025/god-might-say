@@ -9,12 +9,14 @@ import ChatScreen from '@/components/ChatScreen';
 import FavoritesPage from '@/components/FavoritesPage';
 import DonatePage from '@/components/DonatePage';
 import AboutPage from '@/components/AboutPage';
-import MessageOfTheDayPage from '@/components/MessageOfTheDayPage';
+import MotdModal from '@/components/MotdModal';
+
 
 
 const AppLayout = () => {
   const { isMenuOpen, setIsMenuOpen } = useContext(AppContext);
   const [vhHeight, setVhHeight] = useState('100vh');
+  const [showMotd, setShowMotd] = useState(false);
 
   useEffect(() => {
     const updateHeight = () => {
@@ -23,6 +25,12 @@ const AppLayout = () => {
     updateHeight();
     window.addEventListener('resize', updateHeight);
     return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
+  useEffect(() => {
+    const toggleMotd = () => setShowMotd(true);
+    window.addEventListener('toggle-motd', toggleMotd);
+    return () => window.removeEventListener('toggle-motd', toggleMotd);
   }, []);
 
   return (
@@ -37,7 +45,6 @@ const AppLayout = () => {
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/donate" element={<DonatePage />} />
           <Route path="/about" element={<AboutPage />} />
-          <Route path="/message" element={<MessageOfTheDayPage />} />
         </Routes>
       </main>
 
@@ -47,9 +54,12 @@ const AppLayout = () => {
           onClick={() => setIsMenuOpen(false)}
         ></div>
       )}
+
+      <MotdModal visible={showMotd} onClose={() => setShowMotd(false)} />
     </div>
   );
 };
+
 
 const AppGate = () => {
   const { isAppLoading } = useContext(AppContext);
