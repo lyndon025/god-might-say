@@ -5,7 +5,7 @@ import ChatInput from './ChatInput';
 import LoadingIndicator from './LoadingIndicator';
 import { serverTimestamp } from 'firebase/firestore';
 import ERROR_RESPONSES from '../constants/errorMessages';
-import SendToLLM from '../utils/SendToLLM'; // ✅ default import now
+import SendToLLM from '../utils/SendToLLM'; //
 
 const ChatScreen = () => {
   const { chatHistory, isLoading, addMessageToHistory, setIsLoading } = useContext(AppContext);
