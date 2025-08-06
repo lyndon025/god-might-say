@@ -10,6 +10,7 @@ export async function onRequestPost({ request, env }) {
       ...recentExchanges,
       { role: "user", content: userMessage }
     ]
+    max_tokens: 1024, 
   };
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
