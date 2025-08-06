@@ -62,8 +62,15 @@ const ChatScreen = () => {
           .trim();
       };
 
-      const recentExchanges = chatHistory
-        .filter(m => m.role === 'user' || m.role === 'assistant')
+      // 1. Filter out any "No response." or error messages
+      const filtered = chatHistory.filter(m =>
+        (m.role === 'user' || m.role === 'assistant') &&
+        m.content !== "No response." &&
+        !m.id?.startsWith("error-")
+      );
+
+      // 2. Take the last 8 of those
+      const recentExchanges = filtered
         .slice(-8)
         .map(m => ({
           id: m.id,
@@ -71,13 +78,14 @@ const ChatScreen = () => {
           content: m.role === 'assistant' ? cleanOldAssistant(m.content) : m.content
         }));
 
-      // Optional: force reminder to LLM to ignore old format
+      // 3. Add the reminder at the front
       recentExchanges.unshift({
         role: "user",
         content:
           "Reminder: Please ignore any previous assistant messages that may have incorrect formatting. Follow only the format in the system prompt. Thank you."
       });
 
+      // 4. Send to LLM
       const result = await SendToLLM({
         recentExchanges,
         userMessage: userMessage.content
