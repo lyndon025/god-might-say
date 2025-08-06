@@ -26,7 +26,9 @@ export default async function SendToLLM({ userMessage, recentExchanges }) {
           ...recentExchanges,
           { role: "user", content: userMessage },
         ],
-        max_tokens: 1024, 
+        max_tokens: 1024,
+        temperature: 0.7,
+        top_p: 1,
       };
 
       response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -46,16 +48,12 @@ export default async function SendToLLM({ userMessage, recentExchanges }) {
       });
     }
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-      throw new Error(errorData.error.message || 'Unknown error');
-    }
-
     const data = await response.json();
+
     return {
       success: true,
-      content: data.choices?.[0]?.message?.content ?? "No response.",
-      id: data.id
+      content: data.content || data.choices?.[0]?.message?.content || "No response.",
+      id: data.id || `gen-${Date.now()}`
     };
   } catch (error) {
     console.error("SendToLLM error:", error);

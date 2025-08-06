@@ -3,11 +3,6 @@
 export async function onRequestPost({ request, env }) {
   const { recentExchanges, userMessage } = await request.json();
 
-  // DEBUG: Confirm function is being hit and max_tokens is included
-  console.log("[chat.js] ✅ Function triggered");
-  console.log("[chat.js] Received userMessage:", userMessage);
-  console.log("[chat.js] Using model: google/gemini-2.5-flash-lite");
-
   const payload = {
     model: "google/gemini-2.5-flash-lite",
     messages: [
@@ -32,12 +27,10 @@ export async function onRequestPost({ request, env }) {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      console.error("[chat.js] ❌ OpenRouter error:", data);
+    if (!response.ok || !data.choices?.[0]?.message?.content) {
       return new Response(JSON.stringify({
         success: false,
-        error: data.error?.message || "Unknown error from OpenRouter",
-        debug: { payload }
+        error: data.error?.message || "No response content received",
       }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
@@ -46,7 +39,7 @@ export async function onRequestPost({ request, env }) {
 
     return new Response(JSON.stringify({
       success: true,
-      content: data.choices?.[0]?.message?.content ?? "No response.",
+      content: data.choices[0].message.content,
       id: data.id,
       debug: { model: payload.model, max_tokens: payload.max_tokens },
     }), {
@@ -54,11 +47,9 @@ export async function onRequestPost({ request, env }) {
     });
 
   } catch (error) {
-    console.error("[chat.js] ❌ Network or unexpected error:", error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
-      debug: { payload }
+      error: error.message || "Unknown server error",
     }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
