@@ -26,6 +26,7 @@ export default async function SendToLLM({ userMessage, recentExchanges }) {
           ...recentExchanges,
           { role: "user", content: userMessage },
         ],
+        max_tokens: 1024, 
       };
 
       response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
