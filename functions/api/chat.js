@@ -8,8 +8,8 @@ export async function onRequestPost({ request, env }) {
     messages: [
       { role: "system", content: env.SYSTEM_PROMPT },
       ...recentExchanges,
-      { role: "user", content: userMessage }
-    ]
+      { role: "user", content: userMessage },
+    ],
     max_tokens: 1024, 
   };
 
