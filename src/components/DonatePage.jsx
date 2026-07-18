@@ -10,11 +10,11 @@ const DonatePage = () => {
           Your generous support helps run and maintain this app. Leveraging AI technology can get expensive, so every contribution helps keep this space available for reflection and guidance. I am truly grateful for your support.
         </p>
 
-        {/* GCash Section */}
+        {/* InstaPay Section */}
         <div className="p-6 bg-surface dark:bg-light-surface rounded-lg">
-          <h3 className="text-2xl font-bold text-accent mb-4">GCash</h3>
-          <img src="/images/gcash_qr.png" alt="GCash QR Code" className="w-48 h-48 mx-auto object-contain" />
-          <p className="mt-4 text-secondary-text dark:text-light-secondary-text">Scan with your GCash app to donate.</p>
+          <h3 className="text-2xl font-bold text-accent mb-4">InstaPay</h3>
+          <img src="/images/instapay_qr.png" alt="InstaPay QR Code" className="w-48 h-48 mx-auto object-contain" />
+          <p className="mt-4 text-secondary-text dark:text-light-secondary-text">Scan with your banking app to donate via InstaPay. Transfer fees may apply.</p>
         </div>
 
         {/* Maya Section */}
