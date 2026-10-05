@@ -21,6 +21,8 @@ export async function onRequestPost({ request, env }) {
       headers: {
         "Authorization": `Bearer ${env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://godmightsay.com",
+        "X-Title": "God Might Say",
       },
       body: JSON.stringify(payload),
     });

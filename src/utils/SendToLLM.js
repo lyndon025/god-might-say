@@ -36,6 +36,8 @@ export default async function SendToLLM({ userMessage, recentExchanges }) {
         headers: {
           Authorization: `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
+          "HTTP-Referer": "https://godmightsay.com",
+          "X-Title": "God Might Say",
         },
         body: JSON.stringify(body),
       });
